@@ -12,6 +12,7 @@
 #include <MenuItem.h>
 #include <Path.h>
 #include <ScrollView.h>
+#include <Size.h>
 #include <String.h>
 #include <StringView.h>
 #include <TextView.h>
@@ -174,6 +175,9 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fTextView->MakeFocus(true);
 	editMenu->SetTargetForItems(fTextView);
 	fStatusView = new BStringView("status", "Line 1, Column 1");
+	fStatusView->SetTruncation(B_TRUNCATE_END);
+	fStatusView->SetExplicitMinSize(BSize(0, B_SIZE_UNSET));
+	fStatusView->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, B_SIZE_UNSET));
 
 	BScrollView* scrollView = new BScrollView("editor scroll", fTextView,
 		B_FOLLOW_ALL, 0, true, true);
