@@ -13,11 +13,12 @@ public:
 	explicit EditorWindow(const entry_ref* document = nullptr);
 	~EditorWindow() override;
 
+	bool IsPristine() const;
+	status_t OpenDocument(const entry_ref& document);
 	void MessageReceived(BMessage* message) override;
 	bool QuitRequested() override;
 
 private:
-	status_t _LoadDocument(const entry_ref& document);
 	status_t _SaveDocument();
 	status_t _SaveDocumentAs(const entry_ref& directory, const char* name);
 	void _ShowOpenPanel();

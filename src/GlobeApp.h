@@ -4,6 +4,8 @@
 #include <Application.h>
 #include <Entry.h>
 
+class EditorWindow;
+
 class GlobeApp : public BApplication {
 public:
 	GlobeApp();
@@ -14,9 +16,11 @@ public:
 	void RefsReceived(BMessage* message) override;
 
 private:
+	EditorWindow* _CreateWindow(const entry_ref* document = nullptr);
 	void _OpenDocument(const entry_ref& document);
 
 	bool fOpenedDocument;
+	int32 fEditorWindowCount;
 };
 
 #endif

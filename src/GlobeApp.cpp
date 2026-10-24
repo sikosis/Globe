@@ -19,7 +19,8 @@ main() {
 GlobeApp::GlobeApp()
 	:
 	BApplication("application/x-vnd.Globe"),
-	fOpenedDocument(false) {
+	fOpenedDocument(false),
+	fEditorWindowCount(0) {
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -39,10 +40,12 @@ void
 GlobeApp::MessageReceived(BMessage* message) {
 	switch (message->what) {
 		case kMessageNewDocument:
-			(new EditorWindow())->Activate();
+			_CreateWindow()->Activate();
 			break;
 		case kMessageWindowClosed:
-			if (CountWindows() == 0)
+			if (fEditorWindowCount > 0)
+				--fEditorWindowCount;
+			if (fEditorWindowCount == 0)
 				PostMessage(B_QUIT_REQUESTED);
 			break;
 		default:
@@ -56,7 +59,7 @@ GlobeApp::MessageReceived(BMessage* message) {
 void
 GlobeApp::ReadyToRun() {
 	if (!fOpenedDocument)
-		new EditorWindow();
+		_CreateWindow();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -74,8 +77,36 @@ GlobeApp::RefsReceived(BMessage* message) {
 
 void
 GlobeApp::_OpenDocument(const entry_ref& document) {
-	new EditorWindow(&document);
+	for (int32 index = 0; index < CountWindows(); ++index) {
+		EditorWindow* window = dynamic_cast<EditorWindow*>(WindowAt(index));
+		if (window == nullptr || !window->Lock())
+			continue;
+
+		bool reuseWindow = window->IsPristine();
+		if (reuseWindow) {
+			status_t error = window->OpenDocument(document);
+			window->Activate();
+			window->Unlock();
+			if (error == B_OK) {
+				fOpenedDocument = true;
+				return;
+			}
+			return;
+		}
+		window->Unlock();
+	}
+
+	_CreateWindow(&document);
 	fOpenedDocument = true;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+EditorWindow*
+GlobeApp::_CreateWindow(const entry_ref* document) {
+	EditorWindow* window = new EditorWindow(document);
+	++fEditorWindowCount;
+	return window;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

@@ -4,6 +4,7 @@
 
 #include <Alert.h>
 #include <Application.h>
+#include <Clipboard.h>
 #include <File.h>
 #include <FilePanel.h>
 #include <LayoutBuilder.h>
@@ -173,7 +174,6 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fTextView->SetDoesUndo(true);
 	fTextView->SetWordWrap(false);
 	fTextView->MakeFocus(true);
-	editMenu->SetTargetForItems(fTextView);
 	fStatusView = new BStringView("status", "Line 1, Column 1");
 	fStatusView->SetTruncation(B_TRUNCATE_END);
 	fStatusView->SetExplicitMinSize(BSize(0, B_SIZE_UNSET));
@@ -195,9 +195,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 		B_FILE_NODE, false, new BMessage(kMessageSavePanelAccepted));
 
 	if (document != nullptr) {
-		status_t error = _LoadDocument(*document);
-		if (error != B_OK)
-			ShowFileError("Opening", document->name, error);
+		OpenDocument(*document);
 	}
 
 	CenterOnScreen();
@@ -211,6 +209,59 @@ EditorWindow::~EditorWindow() {
 	delete fOpenPanel;
 	delete fSavePanel;
 	be_app->PostMessage(kMessageWindowClosed);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+bool
+EditorWindow::IsPristine() const {
+	return !fHasDocument && !fModified && fTextView->TextLength() == 0;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+status_t
+EditorWindow::OpenDocument(const entry_ref& document) {
+	BFile file(&document, B_READ_ONLY);
+	status_t error = file.InitCheck();
+	if (error != B_OK) {
+		ShowFileError("Opening", document.name, error);
+		return error;
+	}
+
+	off_t size = 0;
+	error = file.GetSize(&size);
+	if (error != B_OK) {
+		ShowFileError("Opening", document.name, error);
+		return error;
+	}
+	if (size < 0 || size > INT32_MAX) {
+		ShowFileError("Opening", document.name, B_BAD_VALUE);
+		return B_BAD_VALUE;
+	}
+
+	std::vector<char> contents(static_cast<size_t>(size) + 1, '\0');
+	int32 totalRead = 0;
+	while (totalRead < size) {
+		ssize_t bytesRead = file.Read(contents.data() + totalRead,
+			static_cast<size_t>(size - totalRead));
+		if (bytesRead < 0) {
+			ShowFileError("Opening", document.name,
+				static_cast<status_t>(bytesRead));
+			return static_cast<status_t>(bytesRead);
+		}
+		if (bytesRead == 0)
+			break;
+		totalRead += static_cast<int32>(bytesRead);
+	}
+
+	EditorTextView* editor = static_cast<EditorTextView*>(fTextView);
+	editor->SetNotifyChanges(false);
+	fTextView->SetText(contents.data(), totalRead);
+	editor->SetNotifyChanges(true);
+	_SetDocument(document);
+	_SetModified(false);
+	return B_OK;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -261,6 +312,21 @@ EditorWindow::MessageReceived(BMessage* message) {
 		case kMessageUpdateStatus:
 			_UpdateStatus();
 			break;
+		case B_UNDO:
+			fTextView->Undo(be_clipboard);
+			break;
+		case B_CUT:
+			fTextView->Cut(be_clipboard);
+			break;
+		case B_COPY:
+			fTextView->Copy(be_clipboard);
+			break;
+		case B_PASTE:
+			fTextView->Paste(be_clipboard);
+			break;
+		case B_SELECT_ALL:
+			fTextView->SelectAll();
+			break;
 		default:
 			BWindow::MessageReceived(message);
 			break;
@@ -294,43 +360,6 @@ EditorWindow::QuitRequested() {
 	}
 
 	return true;
-}
-//---------------------------------------------------------------------------------------------------------------------------------//
-
-
-status_t
-EditorWindow::_LoadDocument(const entry_ref& document) {
-	BFile file(&document, B_READ_ONLY);
-	status_t error = file.InitCheck();
-	if (error != B_OK)
-		return error;
-
-	off_t size = 0;
-	error = file.GetSize(&size);
-	if (error != B_OK)
-		return error;
-	if (size < 0 || size > INT32_MAX)
-		return B_BAD_VALUE;
-
-	std::vector<char> contents(static_cast<size_t>(size) + 1, '\0');
-	int32 totalRead = 0;
-	while (totalRead < size) {
-		ssize_t bytesRead = file.Read(contents.data() + totalRead,
-			static_cast<size_t>(size - totalRead));
-		if (bytesRead < 0)
-			return static_cast<status_t>(bytesRead);
-		if (bytesRead == 0)
-			break;
-		totalRead += static_cast<int32>(bytesRead);
-	}
-
-	EditorTextView* editor = static_cast<EditorTextView*>(fTextView);
-	editor->SetNotifyChanges(false);
-	fTextView->SetText(contents.data(), totalRead);
-	editor->SetNotifyChanges(true);
-	_SetDocument(document);
-	_SetModified(false);
-	return B_OK;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -410,6 +439,12 @@ void
 EditorWindow::_SetDocument(const entry_ref& document) {
 	fDocument = document;
 	fHasDocument = true;
+
+	BEntry entry(&document);
+	BEntry parent;
+	if (entry.GetParent(&parent) == B_OK)
+		fSavePanel->SetPanelDirectory(&parent);
+
 	_UpdateTitle();
 	_UpdateStatus();
 }
