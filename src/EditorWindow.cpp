@@ -15,6 +15,7 @@
 #include <MessageRunner.h>
 #include <Messenger.h>
 #include <Path.h>
+#include <Roster.h>
 #include <ScrollView.h>
 #include <Size.h>
 #include <String.h>
@@ -169,7 +170,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fSavePanel(nullptr),
 	fHasDocument(false),
 	fModified(false),
-	fCloseAfterSave(false) {
+	fPendingAction(PendingAction::None) {
 	BMenuBar* menuBar = new BMenuBar("menu bar");
 	BMenu* fileMenu = new BMenu("File");
 	fileMenu->AddItem(new BMenuItem("New", new BMessage(kMessageNewDocument), 'N'));
@@ -190,6 +191,13 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	editMenu->AddItem(new BMenuItem("Paste", new BMessage(B_PASTE), 'V'));
 	editMenu->AddItem(new BMenuItem("Select all", new BMessage(B_SELECT_ALL), 'A'));
 	menuBar->AddItem(editMenu);
+
+	BMenu* previewMenu = new BMenu("Preview");
+	previewMenu->AddItem(new BMenuItem("Preferred browser",
+		new BMessage(kMessagePreviewBrowser), 'P'));
+	previewMenu->AddItem(new BMenuItem("Tororu",
+		new BMessage(kMessagePreviewTororu), 'P', B_SHIFT_KEY));
+	menuBar->AddItem(previewMenu);
 
 	BRect textFrame(0, 0, 100, 100);
 	BRect textRect(textFrame);
@@ -327,16 +335,28 @@ EditorWindow::MessageReceived(BMessage* message) {
 				status_t error = _SaveDocumentAs(directory, name);
 				if (error != B_OK) {
 					ShowFileError("Saving", name, error);
-					fCloseAfterSave = false;
-				} else if (fCloseAfterSave) {
-					fCloseAfterSave = false;
-					PostMessage(B_QUIT_REQUESTED);
+					fPendingAction = PendingAction::None;
+				} else {
+					PendingAction action = fPendingAction;
+					fPendingAction = PendingAction::None;
+					if (action == PendingAction::Close)
+						PostMessage(B_QUIT_REQUESTED);
+					else if (action != PendingAction::None) {
+						error = _LaunchPreview(action);
+						if (error != B_OK) {
+							const char* operation
+								= action == PendingAction::PreviewTororu
+									? "Previewing in Tororu"
+									: "Previewing in the preferred browser";
+							ShowFileError(operation, fDocument.name, error);
+						}
+					}
 				}
 			}
 			break;
 		}
 		case B_CANCEL:
-			fCloseAfterSave = false;
+			fPendingAction = PendingAction::None;
 			break;
 		case kMessageDocumentChanged:
 			_SetModified(true);
@@ -349,6 +369,12 @@ EditorWindow::MessageReceived(BMessage* message) {
 			delete fHighlightRunner;
 			fHighlightRunner = nullptr;
 			_ApplySyntaxHighlighting();
+			break;
+		case kMessagePreviewBrowser:
+			_Preview(PendingAction::PreviewBrowser);
+			break;
+		case kMessagePreviewTororu:
+			_Preview(PendingAction::PreviewTororu);
 			break;
 		case B_UNDO:
 			fTextView->Undo(be_clipboard);
@@ -385,7 +411,7 @@ EditorWindow::QuitRequested() {
 			return false;
 		if (choice == 2) {
 			if (!fHasDocument) {
-				fCloseAfterSave = true;
+				fPendingAction = PendingAction::Close;
 				_ShowSavePanel();
 				return false;
 			}
@@ -516,6 +542,51 @@ EditorWindow::_ScheduleSyntaxHighlighting() {
 	BMessage message(kMessageHighlightDocument);
 	fHighlightRunner = new BMessageRunner(BMessenger(this), &message,
 		kHighlightDelay, 1);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_Preview(PendingAction action) {
+	if (!fHasDocument) {
+		fPendingAction = action;
+		_ShowSavePanel();
+		return;
+	}
+
+	if (fModified) {
+		status_t error = _SaveDocument();
+		if (error != B_OK) {
+			ShowFileError("Saving", fDocument.name, error);
+			return;
+		}
+	}
+
+	status_t error = _LaunchPreview(action);
+	if (error != B_OK) {
+		const char* operation = action == PendingAction::PreviewTororu
+			? "Previewing in Tororu"
+			: "Previewing in the preferred browser";
+		ShowFileError(operation, fDocument.name, error);
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+status_t
+EditorWindow::_LaunchPreview(PendingAction action) {
+	BMessage message(B_REFS_RECEIVED);
+	status_t error = message.AddRef("refs", &fDocument);
+	if (error != B_OK)
+		return error;
+
+	if (action == PendingAction::PreviewBrowser)
+		return be_roster->Launch("text/html", &message);
+	if (action == PendingAction::PreviewTororu) {
+		return be_roster->Launch("application/x-vnd.sikosis-Tororu",
+			&message);
+	}
+	return B_BAD_VALUE;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

@@ -19,7 +19,8 @@ The current development version provides a small, dependable editor core:
 - protection against accidentally closing an unsaved document;
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display; and
-- theme-aware HTML and PHP syntax highlighting while editing.
+- theme-aware HTML and PHP syntax highlighting while editing;
+- previewing in Haiku's preferred browser or the Tororu document viewer.
 
 ## Building
 
@@ -52,7 +53,7 @@ Development is proceeding in small, testable milestones:
 - [x] Add line numbers and a status bar showing the current line, column, file
   type, and modification state.
 - [x] Add HTML and PHP syntax highlighting.
-- [ ] Add a Preview command using Haiku's preferred browser.
+- [x] Add Preview commands for Haiku's preferred browser and Tororu.
 - [ ] Port the original tag toolbar and tag-completion menu.
 - [ ] Add preferences, session restoration, and the original icon and
   resources.

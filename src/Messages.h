@@ -12,6 +12,8 @@ enum {
 	kMessageDocumentChanged = 'gchg',
 	kMessageUpdateStatus = 'gust',
 	kMessageHighlightDocument = 'ghlt',
+	kMessagePreviewBrowser = 'gpwb',
+	kMessagePreviewTororu = 'gpwt',
 	kMessageWindowClosed = 'gwcl'
 };
 
