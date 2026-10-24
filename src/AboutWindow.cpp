@@ -109,10 +109,6 @@ CreateCreditsView() {
 			"Gergely Rózsahegyi (RoGer) — development"))
 		.Add(new BStringView("original designer",
 			"Attila Ökrös (kesigomu) — graphics, tags, and design"))
-		.AddStrut(8.0f)
-		.Add(Heading("thanks heading", "Special Thanks"))
-		.Add(new BStringView("haiku thanks",
-			"The Haiku project and HaikuArchives community"))
 		.AddGlue();
 
 	return view;
@@ -218,7 +214,7 @@ LinkView::MouseDown(BPoint point) {
 
 AboutWindow::AboutWindow()
 	:
-	BWindow(BRect(0, 0, 640, 540), "About Globe", B_TITLED_WINDOW,
+	BWindow(BRect(0, 0, 520, 540), "About Globe", B_TITLED_WINDOW,
 		B_NOT_ZOOMABLE | B_CLOSE_ON_ESCAPE) {
 	BStringView* title = new BStringView("title", "Globe");
 	BFont titleFont(*be_bold_font);

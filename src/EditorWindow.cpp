@@ -199,6 +199,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	BMenu* previewMenu = new BMenu("Preview");
 	previewMenu->AddItem(new BMenuItem("Preferred browser",
 		new BMessage(kMessagePreviewBrowser), 'P'));
+	previewMenu->AddSeparatorItem();
 	previewMenu->AddItem(new BMenuItem("Tororu",
 		new BMessage(kMessagePreviewTororu), 'P', B_SHIFT_KEY));
 	menuBar->AddItem(previewMenu);
