@@ -10,7 +10,7 @@ SRCS = EditorWindow.cpp \
 RDEFS = Globe.rdef
 RSRCS =
 
-LIBS = be $(STDCPPLIBS)
+LIBS = be tracker $(STDCPPLIBS)
 LIBPATHS =
 SYSTEM_INCLUDE_PATHS =
 LOCAL_INCLUDE_PATHS =
