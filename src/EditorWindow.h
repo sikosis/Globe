@@ -14,7 +14,6 @@ public:
 	~EditorWindow() override;
 
 	void MessageReceived(BMessage* message) override;
-	void Pulse() override;
 	bool QuitRequested() override;
 
 private:

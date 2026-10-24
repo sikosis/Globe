@@ -81,6 +81,14 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
+	void Pulse() override {
+		BTextView::Pulse();
+		if (Window() != nullptr)
+			Window()->PostMessage(kMessageUpdateStatus);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	void InsertText(const char* text, int32 length, int32 offset,
 		const text_run_array* runs) override {
 		BTextView::InsertText(text, length, offset, runs);
@@ -189,7 +197,6 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	}
 
 	CenterOnScreen();
-	SetPulseRate(100000);
 	_UpdateStatus();
 	Show();
 }
@@ -247,17 +254,13 @@ EditorWindow::MessageReceived(BMessage* message) {
 		case kMessageDocumentChanged:
 			_SetModified(true);
 			break;
+		case kMessageUpdateStatus:
+			_UpdateStatus();
+			break;
 		default:
 			BWindow::MessageReceived(message);
 			break;
 	}
-}
-//---------------------------------------------------------------------------------------------------------------------------------//
-
-
-void
-EditorWindow::Pulse() {
-	_UpdateStatus();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

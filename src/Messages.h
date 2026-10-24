@@ -10,6 +10,7 @@ enum {
 	kMessageSaveDocumentAs = 'gsva',
 	kMessageSavePanelAccepted = 'gspa',
 	kMessageDocumentChanged = 'gchg',
+	kMessageUpdateStatus = 'gust',
 	kMessageWindowClosed = 'gwcl'
 };
 
