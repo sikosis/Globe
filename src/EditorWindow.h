@@ -5,6 +5,7 @@
 #include <Window.h>
 
 class BFilePanel;
+class BStringView;
 class BTextView;
 
 class EditorWindow : public BWindow {
@@ -13,6 +14,7 @@ public:
 	~EditorWindow() override;
 
 	void MessageReceived(BMessage* message) override;
+	void Pulse() override;
 	bool QuitRequested() override;
 
 private:
@@ -23,9 +25,12 @@ private:
 	void _ShowSavePanel();
 	void _SetDocument(const entry_ref& document);
 	void _SetModified(bool modified);
+	const char* _FileTypeLabel() const;
+	void _UpdateStatus();
 	void _UpdateTitle();
 
 	BTextView* fTextView;
+	BStringView* fStatusView;
 	BFilePanel* fOpenPanel;
 	BFilePanel* fSavePanel;
 	entry_ref fDocument;

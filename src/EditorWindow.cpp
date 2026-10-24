@@ -13,13 +13,18 @@
 #include <Path.h>
 #include <ScrollView.h>
 #include <String.h>
+#include <StringView.h>
 #include <TextView.h>
 
 #include <climits>
 #include <cstring>
+#include <strings.h>
 #include <vector>
 
 namespace {
+
+const float kLineNumberGutterWidth = 52.0f;
+
 
 class EditorTextView : public BTextView {
 public:
@@ -38,9 +43,49 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
+	void Draw(BRect updateRect) override {
+		BTextView::Draw(updateRect);
+
+		BRect gutter(Bounds());
+		gutter.right = gutter.left + kLineNumberGutterWidth;
+		SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+		FillRect(gutter & updateRect);
+
+		SetHighColor(tint_color(ui_color(B_PANEL_BACKGROUND_COLOR),
+			B_DARKEN_2_TINT));
+		StrokeLine(BPoint(gutter.right, gutter.top),
+			BPoint(gutter.right, gutter.bottom));
+
+		font_height fontHeight;
+		GetFontHeight(&fontHeight);
+		SetLowColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+		SetHighColor(tint_color(ui_color(B_PANEL_TEXT_COLOR),
+			B_DISABLED_LABEL_TINT));
+
+		int32 firstLine = LineAt(BPoint(TextRect().left, updateRect.top));
+		int32 lastLine = LineAt(BPoint(TextRect().left, updateRect.bottom));
+		if (firstLine < 0)
+			firstLine = 0;
+		if (lastLine >= CountLines())
+			lastLine = CountLines() - 1;
+
+		for (int32 line = firstLine; line <= lastLine; ++line) {
+			BPoint linePosition = PointAt(OffsetAt(line));
+			BString lineNumber;
+			lineNumber << line + 1;
+			float numberWidth = StringWidth(lineNumber.String());
+			DrawString(lineNumber.String(), BPoint(gutter.right - numberWidth - 7,
+				linePosition.y + fontHeight.ascent));
+		}
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	void InsertText(const char* text, int32 length, int32 offset,
 		const text_run_array* runs) override {
 		BTextView::InsertText(text, length, offset, runs);
+		Invalidate(BRect(Bounds().left, Bounds().top,
+			Bounds().left + kLineNumberGutterWidth, Bounds().bottom));
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -49,6 +94,8 @@ public:
 
 	void DeleteText(int32 fromOffset, int32 toOffset) override {
 		BTextView::DeleteText(fromOffset, toOffset);
+		Invalidate(BRect(Bounds().left, Bounds().top,
+			Bounds().left + kLineNumberGutterWidth, Bounds().bottom));
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -78,6 +125,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	BWindow(BRect(100, 100, 900, 700), "Untitled — Globe", B_DOCUMENT_WINDOW,
 		B_ASYNCHRONOUS_CONTROLS | B_AUTO_UPDATE_SIZE_LIMITS),
 	fTextView(nullptr),
+	fStatusView(nullptr),
 	fOpenPanel(nullptr),
 	fSavePanel(nullptr),
 	fHasDocument(false),
@@ -106,19 +154,28 @@ EditorWindow::EditorWindow(const entry_ref* document)
 
 	BRect textFrame(0, 0, 100, 100);
 	BRect textRect(textFrame);
-	textRect.InsetBy(8, 8);
+	textRect.left += kLineNumberGutterWidth + 8;
+	textRect.top += 8;
+	textRect.right -= 8;
+	textRect.bottom -= 8;
 	EditorTextView* editor = new EditorTextView(textFrame, textRect);
 	fTextView = editor;
 	fTextView->SetStylable(false);
 	fTextView->SetDoesUndo(true);
+	fTextView->SetWordWrap(false);
 	fTextView->MakeFocus(true);
 	editMenu->SetTargetForItems(fTextView);
+	fStatusView = new BStringView("status", "Line 1, Column 1");
 
 	BScrollView* scrollView = new BScrollView("editor scroll", fTextView,
 		B_FOLLOW_ALL, 0, true, true);
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 0)
 		.Add(menuBar)
-		.Add(scrollView);
+		.Add(scrollView)
+		.AddGroup(B_HORIZONTAL, 0)
+			.SetInsets(B_USE_SMALL_SPACING, 2, B_USE_SMALL_SPACING, 2)
+			.Add(fStatusView)
+		.End();
 
 	fOpenPanel = new BFilePanel(B_OPEN_PANEL, new BMessenger(be_app), nullptr,
 		B_FILE_NODE, true);
@@ -132,6 +189,8 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	}
 
 	CenterOnScreen();
+	SetPulseRate(100000);
+	_UpdateStatus();
 	Show();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
@@ -192,6 +251,13 @@ EditorWindow::MessageReceived(BMessage* message) {
 			BWindow::MessageReceived(message);
 			break;
 	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::Pulse() {
+	_UpdateStatus();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -338,6 +404,7 @@ EditorWindow::_SetDocument(const entry_ref& document) {
 	fDocument = document;
 	fHasDocument = true;
 	_UpdateTitle();
+	_UpdateStatus();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -348,6 +415,59 @@ EditorWindow::_SetModified(bool modified) {
 		return;
 	fModified = modified;
 	_UpdateTitle();
+	_UpdateStatus();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+const char*
+EditorWindow::_FileTypeLabel() const {
+	if (!fHasDocument)
+		return "Plain text";
+
+	const char* extension = strrchr(fDocument.name, '.');
+	if (extension == nullptr)
+		return "Plain text";
+	if (strcasecmp(extension, ".html") == 0
+		|| strcasecmp(extension, ".htm") == 0) {
+		return "HTML";
+	}
+	if (strcasecmp(extension, ".php") == 0
+		|| strcasecmp(extension, ".phtml") == 0) {
+		return "PHP";
+	}
+	return "Plain text";
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_UpdateStatus() {
+	if (fStatusView == nullptr || fTextView == nullptr)
+		return;
+
+	int32 selectionStart = 0;
+	int32 selectionEnd = 0;
+	fTextView->GetSelection(&selectionStart, &selectionEnd);
+	int32 line = fTextView->LineAt(selectionEnd);
+	int32 lineOffset = fTextView->OffsetAt(line);
+	BString linePrefix;
+	linePrefix.SetTo(fTextView->Text() + lineOffset, selectionEnd - lineOffset);
+	int32 column = linePrefix.CountChars() + 1;
+
+	BString status;
+	status << "Line " << line + 1 << " of " << fTextView->CountLines()
+		<< ", Column " << column << "   •   "
+		<< _FileTypeLabel() << "   •   "
+		<< (fModified ? "Modified" : "Saved");
+	if (selectionStart != selectionEnd) {
+		BString selection;
+		selection.SetTo(fTextView->Text() + selectionStart,
+			selectionEnd - selectionStart);
+		status << "   •   " << selection.CountChars() << " selected";
+	}
+	if (status != fStatusView->Text())
+		fStatusView->SetText(status.String());
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
