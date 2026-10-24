@@ -1,2 +1,3 @@
 src/objects*/
+tests/syntax_highlighter_test
 update-git.sh

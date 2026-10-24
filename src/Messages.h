@@ -11,6 +11,7 @@ enum {
 	kMessageSavePanelAccepted = 'gspa',
 	kMessageDocumentChanged = 'gchg',
 	kMessageUpdateStatus = 'gust',
+	kMessageHighlightDocument = 'ghlt',
 	kMessageWindowClosed = 'gwcl'
 };
 

@@ -1,6 +1,7 @@
 #include "EditorWindow.h"
 
 #include "Messages.h"
+#include "SyntaxHighlighter.h"
 
 #include <Alert.h>
 #include <Application.h>
@@ -11,6 +12,8 @@
 #include <Menu.h>
 #include <MenuBar.h>
 #include <MenuItem.h>
+#include <MessageRunner.h>
+#include <Messenger.h>
 #include <Path.h>
 #include <ScrollView.h>
 #include <Size.h>
@@ -26,6 +29,31 @@
 namespace {
 
 const float kLineNumberGutterWidth = 52.0f;
+const bigtime_t kHighlightDelay = 150000;
+
+
+rgb_color
+SyntaxColour(SyntaxKind kind) {
+	switch (kind) {
+		case SyntaxKind::Tag:
+		case SyntaxKind::Keyword:
+			return ui_color(B_LINK_TEXT_COLOR);
+		case SyntaxKind::Attribute:
+			return ui_color(B_NAVIGATION_BASE_COLOR);
+		case SyntaxKind::String:
+		case SyntaxKind::Number:
+			return ui_color(B_SUCCESS_COLOR);
+		case SyntaxKind::Comment:
+			return tint_color(ui_color(B_DOCUMENT_TEXT_COLOR),
+				B_DISABLED_LABEL_TINT);
+		case SyntaxKind::Entity:
+			return ui_color(B_CONTROL_MARK_COLOR);
+		case SyntaxKind::Variable:
+			return ui_color(B_LINK_VISITED_COLOR);
+	}
+	return ui_color(B_DOCUMENT_TEXT_COLOR);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
 
 
 class EditorTextView : public BTextView {
@@ -136,6 +164,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 		B_ASYNCHRONOUS_CONTROLS | B_AUTO_UPDATE_SIZE_LIMITS),
 	fTextView(nullptr),
 	fStatusView(nullptr),
+	fHighlightRunner(nullptr),
 	fOpenPanel(nullptr),
 	fSavePanel(nullptr),
 	fHasDocument(false),
@@ -170,7 +199,8 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	textRect.bottom -= 8;
 	EditorTextView* editor = new EditorTextView(textFrame, textRect);
 	fTextView = editor;
-	fTextView->SetStylable(false);
+	fTextView->SetStylable(true);
+	fTextView->SetFontAndColor(be_fixed_font);
 	fTextView->SetDoesUndo(true);
 	fTextView->SetWordWrap(false);
 	fTextView->MakeFocus(true);
@@ -206,6 +236,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 
 
 EditorWindow::~EditorWindow() {
+	delete fHighlightRunner;
 	delete fOpenPanel;
 	delete fSavePanel;
 	be_app->PostMessage(kMessageWindowClosed);
@@ -261,6 +292,7 @@ EditorWindow::OpenDocument(const entry_ref& document) {
 	editor->SetNotifyChanges(true);
 	_SetDocument(document);
 	_SetModified(false);
+	_ApplySyntaxHighlighting();
 	return B_OK;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
@@ -308,9 +340,15 @@ EditorWindow::MessageReceived(BMessage* message) {
 			break;
 		case kMessageDocumentChanged:
 			_SetModified(true);
+			_ScheduleSyntaxHighlighting();
 			break;
 		case kMessageUpdateStatus:
 			_UpdateStatus();
+			break;
+		case kMessageHighlightDocument:
+			delete fHighlightRunner;
+			fHighlightRunner = nullptr;
+			_ApplySyntaxHighlighting();
 			break;
 		case B_UNDO:
 			fTextView->Undo(be_clipboard);
@@ -412,6 +450,7 @@ EditorWindow::_SaveDocumentAs(const entry_ref& directory, const char* name) {
 		return error;
 	_SetDocument(document);
 	_SetModified(false);
+	_ApplySyntaxHighlighting();
 	return B_OK;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
@@ -431,6 +470,52 @@ EditorWindow::_ShowSavePanel() {
 		fSavePanel->SetSaveText(fDocument.name);
 	if (!fSavePanel->IsShowing())
 		fSavePanel->Show();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_ApplySyntaxHighlighting() {
+	int32 textLength = fTextView->TextLength();
+	rgb_color baseColour = ui_color(B_DOCUMENT_TEXT_COLOR);
+	BFont font(*be_fixed_font);
+	if (textLength == 0) {
+		fTextView->SetFontAndColor(&font, B_FONT_ALL, &baseColour);
+		return;
+	}
+
+	fTextView->SetFontAndColor(0, textLength, &font, B_FONT_ALL, &baseColour);
+
+	SyntaxLanguage language = SyntaxLanguage::PlainText;
+	if (strcmp(_FileTypeLabel(), "HTML") == 0)
+		language = SyntaxLanguage::Html;
+	else if (strcmp(_FileTypeLabel(), "PHP") == 0)
+		language = SyntaxLanguage::Php;
+	if (language == SyntaxLanguage::PlainText)
+		return;
+
+	std::string text(fTextView->Text(), static_cast<std::size_t>(textLength));
+	std::vector<SyntaxSpan> spans = BuildSyntaxSpans(text, language);
+	for (const SyntaxSpan& span : spans) {
+		if (span.start >= static_cast<std::size_t>(textLength))
+			continue;
+		std::size_t end = span.start + span.length;
+		if (end > static_cast<std::size_t>(textLength))
+			end = static_cast<std::size_t>(textLength);
+		rgb_color colour = SyntaxColour(span.kind);
+		fTextView->SetFontAndColor(static_cast<int32>(span.start),
+			static_cast<int32>(end), nullptr, 0, &colour);
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_ScheduleSyntaxHighlighting() {
+	delete fHighlightRunner;
+	BMessage message(kMessageHighlightDocument);
+	fHighlightRunner = new BMessageRunner(BMessenger(this), &message,
+		kHighlightDelay, 1);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

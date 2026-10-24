@@ -5,7 +5,8 @@ TYPE = APP
 APP_MIME_SIG = application/x-vnd.Globe
 
 SRCS = EditorWindow.cpp \
-	GlobeApp.cpp
+	GlobeApp.cpp \
+	SyntaxHighlighter.cpp
 
 RDEFS = Globe.rdef
 RSRCS =

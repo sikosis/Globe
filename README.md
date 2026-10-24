@@ -15,10 +15,11 @@ The current development version provides a small, dependable editor core:
 - native Haiku document windows;
 - new, open, save, and save-as workflows;
 - multiple documents in separate windows;
-- standard editing commands and shortcuts; and
+- standard editing commands and shortcuts;
 - protection against accidentally closing an unsaved document;
-- line numbers that remain aligned while editing and scrolling; and
-- a live line, column, file-type, and modification-status display.
+- line numbers that remain aligned while editing and scrolling;
+- a live line, column, file-type, and modification-status display; and
+- theme-aware HTML and PHP syntax highlighting while editing.
 
 ## Building
 
@@ -37,13 +38,20 @@ make install
 The default destination is `/boot/home/config/non-packaged/bin`. Override it
 with `make install INSTALL_DIR=/another/path` when needed.
 
+The portable syntax-highlighter tests can be run on Haiku or another system
+with a C++17 compiler:
+
+```sh
+make test
+```
+
 ## Roadmap
 
 Development is proceeding in small, testable milestones:
 
 - [x] Add line numbers and a status bar showing the current line, column, file
   type, and modification state.
-- [ ] Add HTML and PHP syntax highlighting.
+- [x] Add HTML and PHP syntax highlighting.
 - [ ] Add a Preview command using Haiku's preferred browser.
 - [ ] Port the original tag toolbar and tag-completion menu.
 - [ ] Add preferences, session restoration, and the original icon and

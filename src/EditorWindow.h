@@ -5,6 +5,7 @@
 #include <Window.h>
 
 class BFilePanel;
+class BMessageRunner;
 class BStringView;
 class BTextView;
 
@@ -23,6 +24,8 @@ private:
 	status_t _SaveDocumentAs(const entry_ref& directory, const char* name);
 	void _ShowOpenPanel();
 	void _ShowSavePanel();
+	void _ApplySyntaxHighlighting();
+	void _ScheduleSyntaxHighlighting();
 	void _SetDocument(const entry_ref& document);
 	void _SetModified(bool modified);
 	const char* _FileTypeLabel() const;
@@ -31,6 +34,7 @@ private:
 
 	BTextView* fTextView;
 	BStringView* fStatusView;
+	BMessageRunner* fHighlightRunner;
 	BFilePanel* fOpenPanel;
 	BFilePanel* fSavePanel;
 	entry_ref fDocument;
