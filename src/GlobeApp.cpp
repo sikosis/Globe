@@ -1,5 +1,6 @@
 #include "GlobeApp.h"
 
+#include "AboutWindow.h"
 #include "EditorWindow.h"
 #include "Messages.h"
 
@@ -21,6 +22,13 @@ GlobeApp::GlobeApp()
 	BApplication("application/x-vnd.Globe"),
 	fOpenedDocument(false),
 	fEditorWindowCount(0) {
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+GlobeApp::AboutRequested() {
+	(new AboutWindow())->Show();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

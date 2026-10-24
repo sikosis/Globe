@@ -20,7 +20,8 @@ The current development version provides a small, dependable editor core:
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display; and
 - theme-aware HTML and PHP syntax highlighting while editing;
-- previewing in Haiku's preferred browser or the Tororu document viewer.
+- previewing in Haiku's preferred browser or the Tororu document viewer; and
+- an About window preserving Globe's original credits, artwork, and licence.
 
 ## Building
 

@@ -10,6 +10,7 @@ class GlobeApp : public BApplication {
 public:
 	GlobeApp();
 
+	void AboutRequested() override;
 	void ArgvReceived(int32 argc, char** argv) override;
 	void MessageReceived(BMessage* message) override;
 	void ReadyToRun() override;

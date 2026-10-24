@@ -17,3 +17,5 @@ resource file_types message {
 	"types" = "text/x-php",
 	"types" = "text/plain"
 };
+
+resource(100, "about-artwork.png") #'PNG ' import "about-artwork.png";

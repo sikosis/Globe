@@ -4,14 +4,15 @@ NAME = Globe
 TYPE = APP
 APP_MIME_SIG = application/x-vnd.Globe
 
-SRCS = EditorWindow.cpp \
+SRCS = AboutWindow.cpp \
+	EditorWindow.cpp \
 	GlobeApp.cpp \
 	SyntaxHighlighter.cpp
 
 RDEFS = Globe.rdef
 RSRCS =
 
-LIBS = be tracker $(STDCPPLIBS)
+LIBS = be tracker translation $(STDCPPLIBS)
 LIBPATHS =
 SYSTEM_INCLUDE_PATHS =
 LOCAL_INCLUDE_PATHS =

@@ -172,6 +172,14 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fModified(false),
 	fPendingAction(PendingAction::None) {
 	BMenuBar* menuBar = new BMenuBar("menu bar");
+	BMenu* applicationMenu = new BMenu("Globe");
+	applicationMenu->AddItem(new BMenuItem("About Globe…",
+		new BMessage(B_ABOUT_REQUESTED)));
+	applicationMenu->AddSeparatorItem();
+	applicationMenu->AddItem(new BMenuItem("Quit",
+		new BMessage(B_QUIT_REQUESTED), 'Q'));
+	menuBar->AddItem(applicationMenu);
+
 	BMenu* fileMenu = new BMenu("File");
 	fileMenu->AddItem(new BMenuItem("New", new BMessage(kMessageNewDocument), 'N'));
 	fileMenu->AddItem(new BMenuItem("Open…", new BMessage(kMessageOpenDocument), 'O'));
@@ -179,8 +187,6 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fileMenu->AddItem(new BMenuItem("Save", new BMessage(kMessageSaveDocument), 'S'));
 	fileMenu->AddItem(new BMenuItem("Save as…",
 		new BMessage(kMessageSaveDocumentAs), 'S', B_SHIFT_KEY));
-	fileMenu->AddSeparatorItem();
-	fileMenu->AddItem(new BMenuItem("Quit", new BMessage(B_QUIT_REQUESTED), 'Q'));
 	menuBar->AddItem(fileMenu);
 
 	BMenu* editMenu = new BMenu("Edit");
@@ -375,6 +381,9 @@ EditorWindow::MessageReceived(BMessage* message) {
 			break;
 		case kMessagePreviewTororu:
 			_Preview(PendingAction::PreviewTororu);
+			break;
+		case B_ABOUT_REQUESTED:
+			be_app->AboutRequested();
 			break;
 		case B_UNDO:
 			fTextView->Undo(be_clipboard);
