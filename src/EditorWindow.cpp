@@ -78,10 +78,7 @@ const char* const kHtmlTags[] = {
 
 
 BRect
-EditorFrame(bool automation) {
-	if (!automation)
-		return BRect(100, 100, 900, 700);
-
+AvailableScreenFrame() {
 	BScreen screen;
 	if (!screen.IsValid())
 		return BRect(24, 24, 1000, 700);
@@ -93,12 +90,14 @@ EditorFrame(bool automation) {
 //---------------------------------------------------------------------------------------------------------------------------------//
 
 
-uint32
-EditorWindowFlags(bool automation) {
-	uint32 flags = B_ASYNCHRONOUS_CONTROLS;
-	if (!automation)
-		flags |= B_AUTO_UPDATE_SIZE_LIMITS;
-	return flags;
+BRect
+EditorFrame(bool automation) {
+	BRect available = AvailableScreenFrame();
+	if (automation)
+		return available;
+
+	return BRect(0.0f, 0.0f, std::min(800.0f, available.Width()),
+		std::min(600.0f, available.Height()));
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -337,7 +336,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	bool readOnly, bool presentation, int64 automationSession)
 	:
 	BWindow(EditorFrame(automationSession != 0), "Untitled — Globe",
-		B_DOCUMENT_WINDOW, EditorWindowFlags(automationSession != 0)),
+		B_DOCUMENT_WINDOW, B_ASYNCHRONOUS_CONTROLS),
 	fMenuBar(nullptr),
 	fTagToolbar(nullptr),
 	fTextView(nullptr),
@@ -449,11 +448,15 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	if (document != nullptr)
 		fInitialDocumentStatus = OpenDocument(*document);
 
-	if (fPresentationMode) {
-		SetSizeLimits(240.0f, B_SIZE_UNLIMITED, 160.0f, B_SIZE_UNLIMITED);
-	} else {
+	BRect availableFrame = AvailableScreenFrame();
+	float maximumWidth = std::max(1.0f, availableFrame.Width());
+	float maximumHeight = std::max(1.0f, availableFrame.Height());
+	SetSizeLimits(std::min(240.0f, maximumWidth), maximumWidth,
+		std::min(160.0f, maximumHeight), maximumHeight);
+	ResizeTo(std::min(Frame().Width(), maximumWidth),
+		std::min(Frame().Height(), maximumHeight));
+	if (!fPresentationMode)
 		CenterOnScreen();
-	}
 	_UpdateStatus();
 	Layout(true);
 	Show();
@@ -565,8 +568,13 @@ EditorWindow::SetAutomationSession(int64 session) {
 		fMenuBar->Hide();
 		fTagToolbar->Hide();
 		fStatusView->Hide();
-		SetSizeLimits(240.0f, B_SIZE_UNLIMITED, 160.0f,
-			B_SIZE_UNLIMITED);
+		BRect availableFrame = AvailableScreenFrame();
+		float maximumWidth = std::max(1.0f, availableFrame.Width());
+		float maximumHeight = std::max(1.0f, availableFrame.Height());
+		SetSizeLimits(std::min(240.0f, maximumWidth), maximumWidth,
+			std::min(160.0f, maximumHeight), maximumHeight);
+		MoveTo(availableFrame.LeftTop());
+		ResizeTo(maximumWidth, maximumHeight);
 		Layout(true);
 	}
 }
