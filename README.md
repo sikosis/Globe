@@ -99,7 +99,9 @@ from `Messages.h`:
 
 Automation documents are read-only and close without a save prompt. A set or
 close request carrying a missing, zero, or mismatched session returns
-`B_BAD_VALUE`; normal editor windows are unaffected.
+`B_BAD_VALUE`; normal editor windows are unaffected. Automation windows are
+created against the current screen frame with a 24-pixel inset, hide editor
+chrome before layout, and calculate their scroll range at that final size.
 
 ## Roadmap
 

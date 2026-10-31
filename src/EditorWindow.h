@@ -17,12 +17,14 @@ class BView;
 class EditorWindow : public BWindow {
 public:
 	EditorWindow(const char* documentID, const entry_ref* document = nullptr,
-		bool readOnly = false, bool presentation = false);
+		bool readOnly = false, bool presentation = false,
+		int64 automationSession = 0);
 	~EditorWindow() override;
 
 	const char* DocumentID() const;
 	status_t GetSupportedSuites(BMessage* message) override;
 	bool IsPristine() const;
+	status_t InitialDocumentStatus() const;
 	status_t OpenDocument(const entry_ref& document);
 	void SetAutomationSession(int64 session);
 	int64 AutomationSession() const;
@@ -69,6 +71,7 @@ private:
 	BFilePanel* fSavePanel;
 	entry_ref fDocument;
 	BString fDocumentID;
+	status_t fInitialDocumentStatus;
 	bool fHasDocument;
 	bool fModified;
 	bool fReadOnly;

@@ -130,18 +130,9 @@ GlobeApp::MessageReceived(BMessage* message) {
 			}
 
 			int64 session = fNextAutomationSession++;
-			EditorWindow* window = _CreateWindow();
-			if (!window->Lock()) {
-				reply.AddInt32("status", B_ERROR);
-				message->SendReply(&reply);
-				window->PostMessage(B_QUIT_REQUESTED);
-				break;
-			}
-
-			window->SetAutomationSession(session);
-			status_t status = window->OpenDocument(document);
+			EditorWindow* window = _CreateWindow(&document, true, true, session);
+			status_t status = window->InitialDocumentStatus();
 			BMessenger target(window);
-			window->Unlock();
 
 			reply.AddInt32("status", status);
 			if (status == B_OK) {
@@ -237,12 +228,12 @@ GlobeApp::_OpenDocument(const entry_ref& document) {
 
 EditorWindow*
 GlobeApp::_CreateWindow(const entry_ref* document, bool readOnly,
-	bool presentation) {
+	bool presentation, int64 automationSession) {
 	BString documentID;
 	documentID.SetToFormat("document-%ld",
 		static_cast<long>(fNextDocumentID++));
 	EditorWindow* window = new EditorWindow(documentID.String(), document,
-		readOnly, presentation);
+		readOnly, presentation, automationSession);
 	++fEditorWindowCount;
 	return window;
 }

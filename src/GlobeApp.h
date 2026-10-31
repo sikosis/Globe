@@ -21,7 +21,8 @@ public:
 
 private:
 	EditorWindow* _CreateWindow(const entry_ref* document = nullptr,
-		bool readOnly = false, bool presentation = false);
+		bool readOnly = false, bool presentation = false,
+		int64 automationSession = 0);
 	EditorWindow* _DocumentAt(int32 index) const;
 	EditorWindow* _DocumentByID(const char* id) const;
 	EditorWindow* _DocumentFromSpecifier(const BMessage& specifier,

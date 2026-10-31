@@ -21,6 +21,7 @@
 #include <PopUpMenu.h>
 #include <PropertyInfo.h>
 #include <Roster.h>
+#include <Screen.h>
 #include <ScrollBar.h>
 #include <ScrollView.h>
 #include <Size.h>
@@ -40,6 +41,7 @@ namespace {
 const float kLineNumberGutterWidth = 52.0f;
 const bigtime_t kHighlightDelay = 150000;
 const bigtime_t kTagCompletionDelay = 300000;
+const float kAutomationScreenInset = 24.0f;
 
 property_info kDocumentProperties[] = {
 	{ "ID", { B_GET_PROPERTY }, { B_DIRECT_SPECIFIER },
@@ -72,6 +74,32 @@ const char* const kHtmlTags[] = {
 	"summary", "sup", "table", "tbody", "td", "template", "textarea", "tfoot",
 	"th", "thead", "time", "title", "tr", "track", "u", "ul", "video", "wbr"
 };
+
+
+BRect
+EditorFrame(bool automation) {
+	if (!automation)
+		return BRect(100, 100, 900, 700);
+
+	BScreen screen;
+	if (!screen.IsValid())
+		return BRect(24, 24, 1000, 700);
+
+	BRect frame = screen.Frame();
+	frame.InsetBy(kAutomationScreenInset, kAutomationScreenInset);
+	return frame;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+uint32
+EditorWindowFlags(bool automation) {
+	uint32 flags = B_ASYNCHRONOUS_CONTROLS;
+	if (!automation)
+		flags |= B_AUTO_UPDATE_SIZE_LIMITS;
+	return flags;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
 
 
 void
@@ -297,10 +325,10 @@ ShowFileError(const char* operation, const char* path, status_t error) {
 
 
 EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
-	bool readOnly, bool presentation)
+	bool readOnly, bool presentation, int64 automationSession)
 	:
-	BWindow(BRect(100, 100, 900, 700), "Untitled — Globe", B_DOCUMENT_WINDOW,
-		B_ASYNCHRONOUS_CONTROLS | B_AUTO_UPDATE_SIZE_LIMITS),
+	BWindow(EditorFrame(automationSession != 0), "Untitled — Globe",
+		B_DOCUMENT_WINDOW, EditorWindowFlags(automationSession != 0)),
 	fMenuBar(nullptr),
 	fTagToolbar(nullptr),
 	fTextView(nullptr),
@@ -311,12 +339,13 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	fOpenPanel(nullptr),
 	fSavePanel(nullptr),
 	fDocumentID(documentID),
+	fInitialDocumentStatus(B_OK),
 	fHasDocument(false),
 	fModified(false),
-	fReadOnly(readOnly),
-	fPresentation(presentation),
-	fAutomationSession(0),
-	fPresentationMode(false),
+	fReadOnly(readOnly || automationSession != 0),
+	fPresentation(presentation || automationSession != 0),
+	fAutomationSession(automationSession),
+	fPresentationMode(automationSession != 0),
 	fPendingAction(PendingAction::None) {
 	fMenuBar = new BMenuBar("menu bar");
 	BMenu* fileMenu = new BMenu("File");
@@ -402,23 +431,27 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 			.SetInsets(B_USE_SMALL_SPACING, 2, B_USE_SMALL_SPACING, 2)
 			.Add(fStatusView)
 		.End();
-
-	fOpenPanel = new BFilePanel(B_OPEN_PANEL, new BMessenger(be_app), nullptr,
-		B_FILE_NODE, true);
-	fSavePanel = new BFilePanel(B_SAVE_PANEL, new BMessenger(this), nullptr,
-		B_FILE_NODE, false, new BMessage(kMessageSavePanelAccepted));
-
-	if (document != nullptr) {
-		OpenDocument(*document);
-	}
 	if (fPresentation) {
 		fMenuBar->Hide();
 		fTagToolbar->Hide();
 		fStatusView->Hide();
 	}
 
-	CenterOnScreen();
+	fOpenPanel = new BFilePanel(B_OPEN_PANEL, new BMessenger(be_app), nullptr,
+		B_FILE_NODE, true);
+	fSavePanel = new BFilePanel(B_SAVE_PANEL, new BMessenger(this), nullptr,
+		B_FILE_NODE, false, new BMessage(kMessageSavePanelAccepted));
+
+	if (document != nullptr)
+		fInitialDocumentStatus = OpenDocument(*document);
+
+	if (fPresentationMode) {
+		SetSizeLimits(240.0f, B_SIZE_UNLIMITED, 160.0f, B_SIZE_UNLIMITED);
+	} else {
+		CenterOnScreen();
+	}
 	_UpdateStatus();
+	Layout(true);
 	Show();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
@@ -454,6 +487,13 @@ EditorWindow::GetSupportedSuites(BMessage* message) {
 bool
 EditorWindow::IsPristine() const {
 	return !fHasDocument && !fModified && fTextView->TextLength() == 0;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+status_t
+EditorWindow::InitialDocumentStatus() const {
+	return fInitialDocumentStatus;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -513,6 +553,15 @@ EditorWindow::SetAutomationSession(int64 session) {
 
 	fTextView->MakeEditable(!fPresentationMode);
 	fTextView->MakeSelectable(true);
+	if (fPresentationMode) {
+		fPresentation = true;
+		fMenuBar->Hide();
+		fTagToolbar->Hide();
+		fStatusView->Hide();
+		SetSizeLimits(240.0f, B_SIZE_UNLIMITED, 160.0f,
+			B_SIZE_UNLIMITED);
+		Layout(true);
+	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
