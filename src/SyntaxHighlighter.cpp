@@ -81,6 +81,145 @@ IsRdefKeyword(const std::string& word) {
 //---------------------------------------------------------------------------------------------------------------------------------//
 
 
+bool
+IsCppKeyword(const std::string& word) {
+	static const std::unordered_set<std::string> keywords = {
+		"alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand",
+		"bitor", "bool", "break", "case", "catch", "char", "char8_t",
+		"char16_t", "char32_t", "class", "compl", "concept", "const",
+		"consteval", "constexpr", "constinit", "const_cast", "continue",
+		"co_await", "co_return", "co_yield", "decltype", "default",
+		"delete", "do", "double", "dynamic_cast", "else", "enum",
+		"explicit", "export", "extern", "false", "float", "for", "friend",
+		"goto", "if", "inline", "int", "long", "mutable", "namespace",
+		"new", "noexcept", "not", "not_eq", "nullptr", "operator", "or",
+		"or_eq", "private", "protected", "public", "register",
+		"reinterpret_cast", "requires", "return", "short", "signed",
+		"sizeof", "static", "static_assert", "static_cast", "struct",
+		"switch", "template", "this", "thread_local", "throw", "true",
+		"try", "typedef", "typeid", "typename", "union", "unsigned",
+		"using", "virtual", "void", "volatile", "wchar_t", "while", "xor",
+		"xor_eq"
+	};
+	return keywords.find(word) != keywords.end();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+bool
+IsCppConstant(const std::string& word) {
+	bool hasLetter = false;
+	for (char character : word) {
+		if (std::islower(static_cast<unsigned char>(character)))
+			return false;
+		if (std::isupper(static_cast<unsigned char>(character)))
+			hasLetter = true;
+	}
+	return hasLetter && word.find('_') != std::string::npos;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+HighlightCppRange(const std::string& text, std::size_t start,
+	std::size_t end, std::vector<SyntaxSpan>& spans) {
+	std::size_t offset = start;
+	while (offset < end) {
+		if (offset + 1 < end && text[offset] == '/' && text[offset + 1] == '/') {
+			std::size_t commentEnd = text.find('\n', offset + 2);
+			if (commentEnd == std::string::npos || commentEnd > end)
+				commentEnd = end;
+			AddSpan(spans, offset, commentEnd, SyntaxKind::Comment);
+			offset = commentEnd;
+			continue;
+		}
+		if (offset + 1 < end && text[offset] == '/' && text[offset + 1] == '*') {
+			std::size_t commentEnd = text.find("*/", offset + 2);
+			if (commentEnd == std::string::npos || commentEnd + 2 > end)
+				commentEnd = end;
+			else
+				commentEnd += 2;
+			AddSpan(spans, offset, commentEnd, SyntaxKind::Comment);
+			offset = commentEnd;
+			continue;
+		}
+		if (text[offset] == '#') {
+			std::size_t directiveEnd = offset + 1;
+			while (directiveEnd < end
+				&& std::isspace(static_cast<unsigned char>(text[directiveEnd]))) {
+				++directiveEnd;
+			}
+			while (directiveEnd < end
+				&& IsIdentifierCharacter(text[directiveEnd])) {
+				++directiveEnd;
+			}
+			AddSpan(spans, offset, directiveEnd, SyntaxKind::Tag);
+			offset = directiveEnd;
+			continue;
+		}
+		if (text[offset] == '<') {
+			std::size_t lineStart = text.rfind('\n', offset);
+			std::size_t includeStart = lineStart == std::string::npos
+				? 0 : lineStart + 1;
+			if (text.find("#include", includeStart) < offset) {
+				std::size_t includeEnd = text.find('>', offset + 1);
+				if (includeEnd == std::string::npos || includeEnd >= end)
+					includeEnd = end;
+				else
+					++includeEnd;
+				AddSpan(spans, offset, includeEnd, SyntaxKind::String);
+				offset = includeEnd;
+				continue;
+			}
+		}
+		if (text[offset] == '\'' || text[offset] == '"') {
+			char quote = text[offset];
+			std::size_t stringEnd = offset + 1;
+			while (stringEnd < end) {
+				if (text[stringEnd] == '\\' && stringEnd + 1 < end) {
+					stringEnd += 2;
+					continue;
+				}
+				if (text[stringEnd++] == quote)
+					break;
+			}
+			AddSpan(spans, offset, stringEnd, SyntaxKind::String);
+			offset = stringEnd;
+			continue;
+		}
+		if (IsIdentifierStart(text[offset])) {
+			std::size_t wordEnd = offset + 1;
+			while (wordEnd < end && IsIdentifierCharacter(text[wordEnd]))
+				++wordEnd;
+			std::string word = text.substr(offset, wordEnd - offset);
+			if (IsCppKeyword(word))
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Keyword);
+			else if (IsCppConstant(word))
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Entity);
+			else if (word.size() > 1 && word[0] == 'B'
+				&& std::isupper(static_cast<unsigned char>(word[1]))) {
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Attribute);
+			}
+			offset = wordEnd;
+			continue;
+		}
+		if (std::isdigit(static_cast<unsigned char>(text[offset]))) {
+			std::size_t numberEnd = offset + 1;
+			while (numberEnd < end
+				&& (std::isalnum(static_cast<unsigned char>(text[numberEnd]))
+					|| text[numberEnd] == '.' || text[numberEnd] == '_')) {
+				++numberEnd;
+			}
+			AddSpan(spans, offset, numberEnd, SyntaxKind::Number);
+			offset = numberEnd;
+			continue;
+		}
+		++offset;
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 void
 HighlightRdefRange(const std::string& text, std::size_t start,
 	std::size_t end, std::vector<SyntaxSpan>& spans) {
@@ -333,6 +472,10 @@ BuildSyntaxSpans(const std::string& text, SyntaxLanguage language) {
 		return spans;
 	if (language == SyntaxLanguage::Rdef) {
 		HighlightRdefRange(text, 0, text.size(), spans);
+		return spans;
+	}
+	if (language == SyntaxLanguage::Cpp) {
+		HighlightCppRange(text, 0, text.size(), spans);
 		return spans;
 	}
 

@@ -23,8 +23,8 @@ The current development version provides a small, dependable editor core:
 - protection against accidentally closing an unsaved document;
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display;
-- theme-aware HTML, PHP, and Haiku resource-definition syntax highlighting
-  while editing;
+- theme-aware HTML, PHP, C/C++ header and source, and Haiku
+  resource-definition syntax highlighting while editing;
 - previewing in Haiku's preferred browser or the Tororu document viewer;
 - an About window preserving Globe's original credits, artwork, and licence;
 - and a compact HTML tag toolbar using the original artwork, with delayed tag
@@ -87,7 +87,7 @@ Development is proceeding in small, testable milestones:
 
 - [x] Add line numbers and a status bar showing the current line, column, file
   type, and modification state.
-- [x] Add HTML, PHP, and Haiku resource-definition syntax highlighting.
+- [x] Add HTML, PHP, C/C++, and Haiku resource-definition syntax highlighting.
 - [x] Add Preview commands for Haiku's preferred browser and Tororu.
 - [x] Port the original tag toolbar and tag-completion menu.
 - [ ] **Priority:** Add configurable syntax colours and editor display

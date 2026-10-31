@@ -101,6 +101,30 @@ main() {
 	ExpectSpan(rdef, rdefSpans, SyntaxKind::Comment,
 		"// application metadata");
 
+	const std::string header
+		= "#ifndef EDITOR_WINDOW_H\n"
+		"#define EDITOR_WINDOW_H\n"
+		"#include <Window.h>\n\n"
+		"class EditorWindow : public BWindow {\n"
+		"public:\n"
+		"\texplicit EditorWindow(const char* title);\n"
+		"\tbool Open(int32 count = 42); // opens a document\n"
+		"};\n\n"
+		"#endif\n";
+	std::vector<SyntaxSpan> headerSpans
+		= BuildSyntaxSpans(header, SyntaxLanguage::Cpp);
+	ExpectSpan(header, headerSpans, SyntaxKind::Tag, "#ifndef");
+	ExpectSpan(header, headerSpans, SyntaxKind::Entity, "EDITOR_WINDOW_H");
+	ExpectSpan(header, headerSpans, SyntaxKind::Tag, "#include");
+	ExpectSpan(header, headerSpans, SyntaxKind::String, "<Window.h>");
+	ExpectSpan(header, headerSpans, SyntaxKind::Keyword, "class");
+	ExpectSpan(header, headerSpans, SyntaxKind::Keyword, "public");
+	ExpectSpan(header, headerSpans, SyntaxKind::Attribute, "BWindow");
+	ExpectSpan(header, headerSpans, SyntaxKind::Keyword, "const");
+	ExpectSpan(header, headerSpans, SyntaxKind::Number, "42");
+	ExpectSpan(header, headerSpans, SyntaxKind::Comment,
+		"// opens a document");
+
 	if (!BuildSyntaxSpans(html, SyntaxLanguage::PlainText).empty()) {
 		std::cerr << "Plain text unexpectedly produced highlighted spans\n";
 		return EXIT_FAILURE;

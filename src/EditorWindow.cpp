@@ -117,6 +117,29 @@ SendScriptingReply(BMessage* request, status_t error, float result) {
 
 rgb_color
 SyntaxColour(SyntaxKind kind) {
+	rgb_color background = ui_color(B_DOCUMENT_BACKGROUND_COLOR);
+	int32 luminance = (299 * background.red + 587 * background.green
+		+ 114 * background.blue) / 1000;
+	if (luminance < 128) {
+		switch (kind) {
+			case SyntaxKind::Tag:
+				return {120, 180, 255, 255};
+			case SyntaxKind::Keyword:
+				return {203, 166, 247, 255};
+			case SyntaxKind::Attribute:
+				return {112, 210, 215, 255};
+			case SyntaxKind::String:
+				return {166, 218, 149, 255};
+			case SyntaxKind::Number:
+			case SyntaxKind::Entity:
+				return {229, 192, 123, 255};
+			case SyntaxKind::Comment:
+				return {145, 155, 170, 255};
+			case SyntaxKind::Variable:
+				return {220, 150, 210, 255};
+		}
+	}
+
 	switch (kind) {
 		case SyntaxKind::Tag:
 		case SyntaxKind::Keyword:
@@ -813,6 +836,8 @@ EditorWindow::_ApplySyntaxHighlighting() {
 		language = SyntaxLanguage::Php;
 	else if (strcmp(_FileTypeLabel(), "Resource definition") == 0)
 		language = SyntaxLanguage::Rdef;
+	else if (strcmp(_FileTypeLabel(), "C/C++") == 0)
+		language = SyntaxLanguage::Cpp;
 	if (language == SyntaxLanguage::PlainText)
 		return;
 
@@ -992,6 +1017,16 @@ EditorWindow::_FileTypeLabel() const {
 	}
 	if (strcasecmp(extension, ".rdef") == 0)
 		return "Resource definition";
+	if (strcasecmp(extension, ".h") == 0
+		|| strcasecmp(extension, ".hh") == 0
+		|| strcasecmp(extension, ".hpp") == 0
+		|| strcasecmp(extension, ".hxx") == 0
+		|| strcasecmp(extension, ".c") == 0
+		|| strcasecmp(extension, ".cc") == 0
+		|| strcasecmp(extension, ".cpp") == 0
+		|| strcasecmp(extension, ".cxx") == 0) {
+		return "C/C++";
+	}
 	return "Plain text";
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
