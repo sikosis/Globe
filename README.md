@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="screenshot/globe-31102026.png" alt="Globe">
+</p>
+
 <h1 align="center">Globe</h1>
 
 <p align="center">
