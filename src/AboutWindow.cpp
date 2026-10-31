@@ -224,7 +224,7 @@ AboutWindow::AboutWindow()
 	BString versionText = AppVersion();
 	BStringView* version = new BStringView("version", versionText.String());
 	BStringView* description = new BStringView("description",
-		"A Haiku-native editor for HTML and PHP files.");
+		"A Haiku-native source and resource editor.");
 
 	BTabView* tabs = new BTabView("about tabs", B_WIDTH_FROM_LABEL);
 	tabs->AddTab(CreateCreditsView());

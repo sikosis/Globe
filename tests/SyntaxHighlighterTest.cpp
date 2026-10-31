@@ -75,6 +75,32 @@ main() {
 	ExpectSpan(unfinishedHtml, unfinishedHtmlSpans, SyntaxKind::String,
 		"\"unfinished");
 
+	const std::string rdef
+		= "resource app_signature \"application/x-vnd.Sikosis-Showreel\";\n"
+		"resource app_version {\n"
+		"\tmajor = 0,\n"
+		"\tmiddle = 1,\n"
+		"\tminor = 8,\n"
+		"\tvariety = B_APPV_DEVELOPMENT,\n"
+		"\tinternal = 0,\n"
+		"\tshort_info = \"Showreel v0.18\",\n"
+		"\tlong_info = \"Showreel v0.18 - play source code like a slideshow\"\n"
+		"}; // application metadata\n";
+	std::vector<SyntaxSpan> rdefSpans
+		= BuildSyntaxSpans(rdef, SyntaxLanguage::Rdef);
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::Keyword, "resource");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::Attribute, "app_signature");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::Attribute, "major");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::Attribute, "short_info");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::Keyword,
+		"B_APPV_DEVELOPMENT");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::String,
+		"\"application/x-vnd.Sikosis-Showreel\"");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::String, "\"Showreel v0.18\"");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::Number, "8");
+	ExpectSpan(rdef, rdefSpans, SyntaxKind::Comment,
+		"// application metadata");
+
 	if (!BuildSyntaxSpans(html, SyntaxLanguage::PlainText).empty()) {
 		std::cerr << "Plain text unexpectedly produced highlighted spans\n";
 		return EXIT_FAILURE;

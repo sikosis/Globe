@@ -6,6 +6,7 @@
 
 #include <Alert.h>
 #include <Application.h>
+#include <Bitmap.h>
 #include <Button.h>
 #include <Clipboard.h>
 #include <File.h>
@@ -18,12 +19,15 @@
 #include <Messenger.h>
 #include <Path.h>
 #include <PopUpMenu.h>
+#include <PropertyInfo.h>
 #include <Roster.h>
+#include <ScrollBar.h>
 #include <ScrollView.h>
 #include <Size.h>
 #include <String.h>
 #include <StringView.h>
 #include <TextView.h>
+#include <TranslationUtils.h>
 #include <View.h>
 
 #include <climits>
@@ -36,6 +40,24 @@ namespace {
 const float kLineNumberGutterWidth = 52.0f;
 const bigtime_t kHighlightDelay = 150000;
 const bigtime_t kTagCompletionDelay = 300000;
+
+property_info kDocumentProperties[] = {
+	{ "ID", { B_GET_PROPERTY }, { B_DIRECT_SPECIFIER },
+		"Return the stable document identifier", 0, { B_STRING_TYPE }, {}, {} },
+	{ "Path", { B_GET_PROPERTY }, { B_DIRECT_SPECIFIER },
+		"Return the document path", 0, { B_STRING_TYPE }, {}, {} },
+	{ "ReadOnly", { B_GET_PROPERTY }, { B_DIRECT_SPECIFIER },
+		"Return whether editing is disabled", 0, { B_BOOL_TYPE }, {}, {} },
+	{ "Presentation", { B_GET_PROPERTY }, { B_DIRECT_SPECIFIER },
+		"Return whether document chrome is hidden", 0, { B_BOOL_TYPE }, {}, {} },
+	{ "ScrollMaximum", { B_GET_PROPERTY }, { B_DIRECT_SPECIFIER },
+		"Return the maximum vertical scroll position", 0, { B_FLOAT_TYPE },
+		{}, {} },
+	{ "ScrollPosition", { B_GET_PROPERTY, B_SET_PROPERTY },
+		{ B_DIRECT_SPECIFIER }, "Get or set the vertical scroll position", 0,
+		{ B_FLOAT_TYPE }, {}, {} },
+	{ nullptr, {}, {}, nullptr, 0, {}, {}, {} }
+};
 
 const char* const kHtmlTags[] = {
 	"a", "abbr", "address", "article", "aside", "audio", "b", "base",
@@ -50,6 +72,47 @@ const char* const kHtmlTags[] = {
 	"summary", "sup", "table", "tbody", "td", "template", "textarea", "tfoot",
 	"th", "thead", "time", "title", "tr", "track", "u", "ul", "video", "wbr"
 };
+
+
+void
+SendScriptingReply(BMessage* request, status_t error) {
+	BMessage reply(B_REPLY);
+	reply.AddInt32("error", error);
+	if (error != B_OK)
+		reply.AddString("message", strerror(error));
+	request->SendReply(&reply);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+SendScriptingReply(BMessage* request, status_t error, const char* result) {
+	BMessage reply(B_REPLY);
+	reply.AddString("result", result);
+	reply.AddInt32("error", error);
+	request->SendReply(&reply);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+SendScriptingReply(BMessage* request, status_t error, bool result) {
+	BMessage reply(B_REPLY);
+	reply.AddBool("result", result);
+	reply.AddInt32("error", error);
+	request->SendReply(&reply);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+SendScriptingReply(BMessage* request, status_t error, float result) {
+	BMessage reply(B_REPLY);
+	reply.AddFloat("result", result);
+	reply.AddInt32("error", error);
+	request->SendReply(&reply);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
 
 
 rgb_color
@@ -77,10 +140,19 @@ SyntaxColour(SyntaxKind kind) {
 
 
 BButton*
-TagButton(const char* label, const char* tagTemplate, const char* toolTip) {
+TagButton(const char* label, const char* tagTemplate, const char* toolTip,
+	const char* iconResource) {
 	BMessage* message = new BMessage(kMessageInsertTag);
 	message->AddString("template", tagTemplate);
 	BButton* button = new BButton(label, message);
+	BBitmap* icon = BTranslationUtils::GetBitmap('PNG ', iconResource);
+	if (icon != nullptr) {
+		button->SetIcon(icon, B_TRIM_ICON_BITMAP_KEEP_ASPECT);
+		button->SetLabel("");
+		button->SetExplicitMinSize(BSize(34.0f, 34.0f));
+		button->SetExplicitMaxSize(BSize(34.0f, 34.0f));
+		delete icon;
+	}
 	button->SetToolTip(toolTip);
 	return button;
 }
@@ -201,20 +273,27 @@ ShowFileError(const char* operation, const char* path, status_t error) {
 } // namespace
 
 
-EditorWindow::EditorWindow(const entry_ref* document)
+EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
+	bool readOnly, bool presentation)
 	:
 	BWindow(BRect(100, 100, 900, 700), "Untitled — Globe", B_DOCUMENT_WINDOW,
 		B_ASYNCHRONOUS_CONTROLS | B_AUTO_UPDATE_SIZE_LIMITS),
+	fMenuBar(nullptr),
+	fTagToolbar(nullptr),
 	fTextView(nullptr),
+	fScrollView(nullptr),
 	fStatusView(nullptr),
 	fHighlightRunner(nullptr),
 	fTagCompletionRunner(nullptr),
 	fOpenPanel(nullptr),
 	fSavePanel(nullptr),
+	fDocumentID(documentID),
 	fHasDocument(false),
 	fModified(false),
+	fReadOnly(readOnly),
+	fPresentation(presentation),
 	fPendingAction(PendingAction::None) {
-	BMenuBar* menuBar = new BMenuBar("menu bar");
+	fMenuBar = new BMenuBar("menu bar");
 	BMenu* fileMenu = new BMenu("File");
 	fileMenu->AddItem(new BMenuItem("New", new BMessage(kMessageNewDocument), 'N'));
 	fileMenu->AddItem(new BMenuItem("Open…", new BMessage(kMessageOpenDocument), 'O'));
@@ -228,7 +307,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fileMenu->AddSeparatorItem();
 	fileMenu->AddItem(new BMenuItem("Quit",
 		new BMessage(B_QUIT_REQUESTED), 'Q'));
-	menuBar->AddItem(fileMenu);
+	fMenuBar->AddItem(fileMenu);
 
 	BMenu* editMenu = new BMenu("Edit");
 	editMenu->AddItem(new BMenuItem("Undo", new BMessage(B_UNDO), 'Z'));
@@ -237,7 +316,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	editMenu->AddItem(new BMenuItem("Copy", new BMessage(B_COPY), 'C'));
 	editMenu->AddItem(new BMenuItem("Paste", new BMessage(B_PASTE), 'V'));
 	editMenu->AddItem(new BMenuItem("Select all", new BMessage(B_SELECT_ALL), 'A'));
-	menuBar->AddItem(editMenu);
+	fMenuBar->AddItem(editMenu);
 
 	BMenu* previewMenu = new BMenu("Preview");
 	previewMenu->AddItem(new BMenuItem("Preferred browser",
@@ -245,23 +324,28 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	previewMenu->AddSeparatorItem();
 	previewMenu->AddItem(new BMenuItem("Tororu",
 		new BMessage(kMessagePreviewTororu), 'P', B_SHIFT_KEY));
-	menuBar->AddItem(previewMenu);
+	fMenuBar->AddItem(previewMenu);
 
-	BView* tagToolbar = new BView("tag toolbar", B_WILL_DRAW);
-	tagToolbar->SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
-	BLayoutBuilder::Group<>(tagToolbar, B_HORIZONTAL, 3.0f)
+	fTagToolbar = new BView("tag toolbar", B_WILL_DRAW);
+	fTagToolbar->SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
+	BLayoutBuilder::Group<>(fTagToolbar, B_HORIZONTAL, 3.0f)
 		.SetInsets(B_USE_SMALL_SPACING, 3.0f, B_USE_SMALL_SPACING, 3.0f)
-		.Add(TagButton("P", "<p>%c</p>", "Paragraph"))
-		.Add(TagButton("B", "<strong>%c</strong>", "Strong text"))
-		.Add(TagButton("I", "<em>%c</em>", "Emphasised text"))
-		.Add(TagButton("H1", "<h1>%c</h1>", "Heading 1"))
-		.Add(TagButton("A", "<a href=\"\">%c</a>", "Link"))
-		.Add(TagButton("IMG", "<img src=\"%c\" alt=\"\">", "Image"))
-		.Add(TagButton("DIV", "<div>%c</div>", "Division"))
-		.Add(TagButton("SPAN", "<span>%c</span>", "Inline span"))
-		.Add(TagButton("UL", "<ul>\n%c\n</ul>", "Unordered list"))
-		.Add(TagButton("LI", "<li>%c</li>", "List item"))
-		.Add(TagButton("BR", "<br>%c", "Line break"))
+		.Add(TagButton("P", "<p>%c</p>", "Paragraph", "toolbar-p.png"))
+		.Add(TagButton("B", "<strong>%c</strong>", "Strong text",
+			"toolbar-bold.png"))
+		.Add(TagButton("I", "<em>%c</em>", "Emphasised text",
+			"toolbar-italic.png"))
+		.Add(TagButton("H1", "<h1>%c</h1>", "Heading 1", "toolbar-h1.png"))
+		.Add(TagButton("A", "<a href=\"\">%c</a>", "Link", "toolbar-anchor.png"))
+		.Add(TagButton("IMG", "<img src=\"%c\" alt=\"\">", "Image",
+			"toolbar-image.png"))
+		.Add(TagButton("DIV", "<div>%c</div>", "Division", "toolbar-div.png"))
+		.Add(TagButton("SPAN", "<span>%c</span>", "Inline span",
+			"toolbar-span.png"))
+		.Add(TagButton("UL", "<ul>\n%c\n</ul>", "Unordered list",
+			"toolbar-ul.png"))
+		.Add(TagButton("LI", "<li>%c</li>", "List item", "toolbar-li.png"))
+		.Add(TagButton("BR", "<br>%c", "Line break", "toolbar-br.png"))
 		.AddGlue();
 
 	BRect textFrame(0, 0, 100, 100);
@@ -276,18 +360,19 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fTextView->SetFontAndColor(be_fixed_font);
 	fTextView->SetDoesUndo(true);
 	fTextView->SetWordWrap(false);
+	fTextView->MakeEditable(!fReadOnly);
 	fTextView->MakeFocus(true);
 	fStatusView = new BStringView("status", "Line 1, Column 1");
 	fStatusView->SetTruncation(B_TRUNCATE_END);
 	fStatusView->SetExplicitMinSize(BSize(0, B_SIZE_UNSET));
 	fStatusView->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, B_SIZE_UNSET));
 
-	BScrollView* scrollView = new BScrollView("editor scroll", fTextView,
+	fScrollView = new BScrollView("editor scroll", fTextView,
 		B_FOLLOW_ALL, 0, true, true);
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 0)
-		.Add(menuBar)
-		.Add(tagToolbar)
-		.Add(scrollView)
+		.Add(fMenuBar)
+		.Add(fTagToolbar)
+		.Add(fScrollView)
 		.AddGroup(B_HORIZONTAL, 0)
 			.SetInsets(B_USE_SMALL_SPACING, 2, B_USE_SMALL_SPACING, 2)
 			.Add(fStatusView)
@@ -300,6 +385,11 @@ EditorWindow::EditorWindow(const entry_ref* document)
 
 	if (document != nullptr) {
 		OpenDocument(*document);
+	}
+	if (fPresentation) {
+		fMenuBar->Hide();
+		fTagToolbar->Hide();
+		fStatusView->Hide();
 	}
 
 	CenterOnScreen();
@@ -315,6 +405,23 @@ EditorWindow::~EditorWindow() {
 	delete fOpenPanel;
 	delete fSavePanel;
 	be_app->PostMessage(kMessageWindowClosed);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+const char*
+EditorWindow::DocumentID() const {
+	return fDocumentID.String();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+status_t
+EditorWindow::GetSupportedSuites(BMessage* message) {
+	message->AddString("suites", "suite/vnd.hGlobe-Document");
+	BPropertyInfo propertyInfo(kDocumentProperties);
+	message->AddFlat("messages", &propertyInfo);
+	return BWindow::GetSupportedSuites(message);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -375,6 +482,11 @@ EditorWindow::OpenDocument(const entry_ref& document) {
 
 void
 EditorWindow::MessageReceived(BMessage* message) {
+	if ((message->what == B_GET_PROPERTY || message->what == B_SET_PROPERTY)
+		&& _HandleScriptingMessage(message)) {
+		return;
+	}
+
 	switch (message->what) {
 		case kMessageNewDocument:
 			be_app->PostMessage(kMessageNewDocument);
@@ -446,8 +558,10 @@ EditorWindow::MessageReceived(BMessage* message) {
 		case kMessageInsertTag:
 		{
 			const char* tagTemplate = nullptr;
-			if (message->FindString("template", &tagTemplate) == B_OK)
+			if (!fReadOnly
+				&& message->FindString("template", &tagTemplate) == B_OK) {
 				_InsertTagTemplate(tagTemplate);
+			}
 			break;
 		}
 		case kMessageScheduleTagCompletion:
@@ -466,16 +580,19 @@ EditorWindow::MessageReceived(BMessage* message) {
 			be_app->AboutRequested();
 			break;
 		case B_UNDO:
-			fTextView->Undo(be_clipboard);
+			if (!fReadOnly)
+				fTextView->Undo(be_clipboard);
 			break;
 		case B_CUT:
-			fTextView->Cut(be_clipboard);
+			if (!fReadOnly)
+				fTextView->Cut(be_clipboard);
 			break;
 		case B_COPY:
 			fTextView->Copy(be_clipboard);
 			break;
 		case B_PASTE:
-			fTextView->Paste(be_clipboard);
+			if (!fReadOnly)
+				fTextView->Paste(be_clipboard);
 			break;
 		case B_SELECT_ALL:
 			fTextView->SelectAll();
@@ -484,6 +601,18 @@ EditorWindow::MessageReceived(BMessage* message) {
 			BWindow::MessageReceived(message);
 			break;
 	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+BHandler*
+EditorWindow::ResolveSpecifier(BMessage* message, int32 index,
+	BMessage* specifier, int32 form, const char* property) {
+	BPropertyInfo propertyInfo(kDocumentProperties);
+	if (propertyInfo.FindMatch(message, 0, specifier, form, property) >= 0)
+		return this;
+
+	return BWindow::ResolveSpecifier(message, index, specifier, form, property);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -513,6 +642,82 @@ EditorWindow::QuitRequested() {
 	}
 
 	return true;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+bool
+EditorWindow::_HandleScriptingMessage(BMessage* message) {
+	int32 specifierIndex = 0;
+	BMessage specifier;
+	BString property;
+	if (message->GetCurrentSpecifier(&specifierIndex, &specifier) != B_OK
+		|| specifier.FindString("property", &property) != B_OK) {
+		return false;
+	}
+
+	if (message->what == B_GET_PROPERTY) {
+		if (property == "ID") {
+			SendScriptingReply(message, B_OK, fDocumentID.String());
+			return true;
+		}
+		if (property == "Path") {
+			BPath path;
+			if (fHasDocument && path.SetTo(&fDocument) == B_OK)
+				SendScriptingReply(message, B_OK, path.Path());
+			else
+				SendScriptingReply(message, B_OK, "");
+			return true;
+		}
+		if (property == "ReadOnly") {
+			SendScriptingReply(message, B_OK, fReadOnly);
+			return true;
+		}
+		if (property == "Presentation") {
+			SendScriptingReply(message, B_OK, fPresentation);
+			return true;
+		}
+
+		BScrollBar* scrollBar = fScrollView->ScrollBar(B_VERTICAL);
+		if (scrollBar == nullptr) {
+			SendScriptingReply(message, B_NO_INIT);
+			return true;
+		}
+		if (property == "ScrollMaximum") {
+			float minimum = 0.0f;
+			float maximum = 0.0f;
+			scrollBar->GetRange(&minimum, &maximum);
+			SendScriptingReply(message, B_OK, maximum);
+			return true;
+		}
+		if (property == "ScrollPosition") {
+			SendScriptingReply(message, B_OK, scrollBar->Value());
+			return true;
+		}
+	}
+
+	if (message->what == B_SET_PROPERTY && property == "ScrollPosition") {
+		float position = 0.0f;
+		if (message->FindFloat("data", &position) != B_OK) {
+			int32 integerPosition = 0;
+			if (message->FindInt32("data", &integerPosition) != B_OK) {
+				SendScriptingReply(message, B_BAD_VALUE);
+				return true;
+			}
+			position = static_cast<float>(integerPosition);
+		}
+
+		BScrollBar* scrollBar = fScrollView->ScrollBar(B_VERTICAL);
+		if (scrollBar == nullptr) {
+			SendScriptingReply(message, B_NO_INIT);
+			return true;
+		}
+		scrollBar->SetValue(position);
+		SendScriptingReply(message, B_OK, scrollBar->Value());
+		return true;
+	}
+
+	return false;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -606,6 +811,8 @@ EditorWindow::_ApplySyntaxHighlighting() {
 		language = SyntaxLanguage::Html;
 	else if (strcmp(_FileTypeLabel(), "PHP") == 0)
 		language = SyntaxLanguage::Php;
+	else if (strcmp(_FileTypeLabel(), "Resource definition") == 0)
+		language = SyntaxLanguage::Rdef;
 	if (language == SyntaxLanguage::PlainText)
 		return;
 
@@ -783,6 +990,8 @@ EditorWindow::_FileTypeLabel() const {
 		|| strcasecmp(extension, ".phtml") == 0) {
 		return "PHP";
 	}
+	if (strcasecmp(extension, ".rdef") == 0)
+		return "Resource definition";
 	return "Plain text";
 }
 //---------------------------------------------------------------------------------------------------------------------------------//

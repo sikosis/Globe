@@ -8,7 +8,8 @@
 enum class SyntaxLanguage {
 	PlainText,
 	Html,
-	Php
+	Php,
+	Rdef
 };
 
 enum class SyntaxKind {

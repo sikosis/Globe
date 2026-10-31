@@ -69,6 +69,108 @@ IsPhpKeyword(const std::string& word) {
 //---------------------------------------------------------------------------------------------------------------------------------//
 
 
+bool
+IsRdefKeyword(const std::string& word) {
+	static const std::unordered_set<std::string> keywords = {
+		"archive", "array", "enum", "false", "import", "message",
+		"resource", "true"
+	};
+	return keywords.find(word) != keywords.end()
+		|| (word.size() > 2 && word[0] == 'B' && word[1] == '_');
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+HighlightRdefRange(const std::string& text, std::size_t start,
+	std::size_t end, std::vector<SyntaxSpan>& spans) {
+	std::size_t offset = start;
+	bool expectResourceName = false;
+	while (offset < end) {
+		if (offset + 1 < end && text[offset] == '/' && text[offset + 1] == '/') {
+			std::size_t commentEnd = text.find('\n', offset + 2);
+			if (commentEnd == std::string::npos || commentEnd > end)
+				commentEnd = end;
+			AddSpan(spans, offset, commentEnd, SyntaxKind::Comment);
+			offset = commentEnd;
+			continue;
+		}
+		if (offset + 1 < end && text[offset] == '/' && text[offset + 1] == '*') {
+			std::size_t commentEnd = text.find("*/", offset + 2);
+			if (commentEnd == std::string::npos || commentEnd + 2 > end)
+				commentEnd = end;
+			else
+				commentEnd += 2;
+			AddSpan(spans, offset, commentEnd, SyntaxKind::Comment);
+			offset = commentEnd;
+			continue;
+		}
+		if (text[offset] == '\'' || text[offset] == '"') {
+			char quote = text[offset];
+			std::size_t stringEnd = offset + 1;
+			while (stringEnd < end) {
+				if (text[stringEnd] == '\\' && stringEnd + 1 < end) {
+					stringEnd += 2;
+					continue;
+				}
+				if (text[stringEnd++] == quote)
+					break;
+			}
+			AddSpan(spans, offset, stringEnd, SyntaxKind::String);
+			offset = stringEnd;
+			continue;
+		}
+		if (text[offset] == '#') {
+			std::size_t directiveEnd = offset + 1;
+			while (directiveEnd < end
+				&& IsIdentifierCharacter(text[directiveEnd])) {
+				++directiveEnd;
+			}
+			if (directiveEnd > offset + 1) {
+				AddSpan(spans, offset, directiveEnd, SyntaxKind::Keyword);
+				offset = directiveEnd;
+				continue;
+			}
+		}
+		if (expectResourceName && text[offset] == '(')
+			expectResourceName = false;
+		if (IsIdentifierStart(text[offset])) {
+			std::size_t wordEnd = offset + 1;
+			while (wordEnd < end && IsIdentifierCharacter(text[wordEnd]))
+				++wordEnd;
+			std::string word = text.substr(offset, wordEnd - offset);
+			std::size_t next = wordEnd;
+			while (next < end
+				&& std::isspace(static_cast<unsigned char>(text[next]))) {
+				++next;
+			}
+			if (IsRdefKeyword(word)) {
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Keyword);
+				expectResourceName = word == "resource";
+			} else if (expectResourceName || (next < end && text[next] == '=')) {
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Attribute);
+				expectResourceName = false;
+			}
+			offset = wordEnd;
+			continue;
+		}
+		if (std::isdigit(static_cast<unsigned char>(text[offset]))) {
+			std::size_t numberEnd = offset + 1;
+			while (numberEnd < end
+				&& (std::isalnum(static_cast<unsigned char>(text[numberEnd]))
+					|| text[numberEnd] == '.' || text[numberEnd] == '_')) {
+				++numberEnd;
+			}
+			AddSpan(spans, offset, numberEnd, SyntaxKind::Number);
+			offset = numberEnd;
+			continue;
+		}
+		++offset;
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 void
 HighlightPhpRange(const std::string& text, std::size_t start,
 	std::size_t end, std::vector<SyntaxSpan>& spans) {
@@ -229,6 +331,10 @@ BuildSyntaxSpans(const std::string& text, SyntaxLanguage language) {
 	std::vector<SyntaxSpan> spans;
 	if (language == SyntaxLanguage::PlainText)
 		return spans;
+	if (language == SyntaxLanguage::Rdef) {
+		HighlightRdefRange(text, 0, text.size(), spans);
+		return spans;
+	}
 
 	std::size_t offset = 0;
 	while (offset < text.size()) {

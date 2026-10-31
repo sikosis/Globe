@@ -19,3 +19,15 @@ resource file_types message {
 };
 
 resource(100, "about-artwork.png") #'PNG ' import "about-artwork.png";
+
+resource(200, "toolbar-p.png") #'PNG ' import "toolbar/p.png";
+resource(201, "toolbar-bold.png") #'PNG ' import "toolbar/bold.png";
+resource(202, "toolbar-italic.png") #'PNG ' import "toolbar/italic.png";
+resource(203, "toolbar-h1.png") #'PNG ' import "toolbar/h1.png";
+resource(204, "toolbar-anchor.png") #'PNG ' import "toolbar/anchor.png";
+resource(205, "toolbar-image.png") #'PNG ' import "toolbar/image.png";
+resource(206, "toolbar-div.png") #'PNG ' import "toolbar/div.png";
+resource(207, "toolbar-span.png") #'PNG ' import "toolbar/span.png";
+resource(208, "toolbar-ul.png") #'PNG ' import "toolbar/ul.png";
+resource(209, "toolbar-li.png") #'PNG ' import "toolbar/li.png";
+resource(210, "toolbar-br.png") #'PNG ' import "toolbar/br.png";

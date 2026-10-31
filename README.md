@@ -19,10 +19,12 @@ The current development version provides a small, dependable editor core:
 - protection against accidentally closing an unsaved document;
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display;
-- theme-aware HTML and PHP syntax highlighting while editing;
+- theme-aware HTML, PHP, and Haiku resource-definition syntax highlighting
+  while editing;
 - previewing in Haiku's preferred browser or the Tororu document viewer;
 - an About window preserving Globe's original credits, artwork, and licence;
-- and a compact HTML tag toolbar with delayed tag completion after typing `<`.
+- and a compact HTML tag toolbar using the original artwork, with delayed tag
+  completion after typing `<`.
 
 ## Building
 
@@ -48,17 +50,49 @@ another system with a C++17 compiler:
 make test
 ```
 
+## Scripting with `hey`
+
+Globe's application signature is `application/x-vnd.hGlobe`, keeping it
+distinct from the historical application while the application name remains
+`Globe`. Scripts therefore address the running application as `Globe`. Each
+document receives a stable ID for the lifetime of the application. Documents
+may also be addressed by their zero-based index.
+
+```sh
+hey Globe create Document with Path="/path/file.cpp" ReadOnly=true Presentation=true
+hey Globe get ID of Document 0
+hey Globe get Path of Document id="document-1"
+hey Globe get ScrollMaximum of Document id="document-1"
+hey Globe get ScrollPosition of Document id="document-1"
+hey Globe set ScrollPosition of Document id="document-1" to 120
+hey Globe delete Document id="document-1"
+```
+
+The standard name form, `Document "document-1"`, is also accepted anywhere an
+ID specifier is shown above.
+
+`ReadOnly=true` disables editing. `Presentation=true` hides the menu, tag
+toolbar, and status display. A create command may omit `Path` to create an
+untitled document, and its reply contains the new document ID in `result`.
+Closing uses `delete`, the standard `hey` verb for `B_DELETE_PROPERTY`; the
+window still follows Globe's normal unsaved-changes safeguard.
+
 ## Roadmap
 
 Development is proceeding in small, testable milestones:
 
 - [x] Add line numbers and a status bar showing the current line, column, file
   type, and modification state.
-- [x] Add HTML and PHP syntax highlighting.
+- [x] Add HTML, PHP, and Haiku resource-definition syntax highlighting.
 - [x] Add Preview commands for Haiku's preferred browser and Tororu.
 - [x] Port the original tag toolbar and tag-completion menu.
-- [ ] Add preferences, session restoration, and the original icon and
-  resources.
+- [ ] **Priority:** Add configurable syntax colours and editor display
+  preferences, including font, size, word wrap, and line-number visibility.
+- [x] Add the initial Haiku scripting suite for document creation, stable IDs,
+  paths, read-only and presentation modes, scrolling, and closing.
+- [ ] **Priority:** Expand `hey` scripting to cover selection, saving, and
+  preview operations.
+- [ ] Add session restoration and the original application icon and resources.
 - [ ] Package Globe as an `.hpkg`.
 
 ## Project layout
