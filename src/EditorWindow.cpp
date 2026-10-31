@@ -685,7 +685,7 @@ EditorWindow::MessageReceived(BMessage* message) {
 				break;
 			}
 
-			BScrollBar* scrollBar = fTextView->ScrollBar(B_VERTICAL);
+			BScrollBar* scrollBar = fScrollView->ScrollBar(B_VERTICAL);
 			if (scrollBar == nullptr) {
 				BMessage reply;
 				reply.AddInt32("status", B_NO_INIT);
@@ -789,7 +789,7 @@ EditorWindow::QuitRequested() {
 void
 EditorWindow::_ReplyWithScrollState(BMessage* message) {
 	BMessage reply;
-	BScrollBar* scrollBar = fTextView->ScrollBar(B_VERTICAL);
+	BScrollBar* scrollBar = fScrollView->ScrollBar(B_VERTICAL);
 	if (scrollBar == nullptr) {
 		reply.AddInt32("status", B_NO_INIT);
 		message->SendReply(&reply);
