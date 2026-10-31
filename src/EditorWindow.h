@@ -55,6 +55,7 @@ private:
 	void _ShowTagCompletion();
 	void _Preview(PendingAction action);
 	status_t _LaunchPreview(PendingAction action);
+	void _ResetScrollPosition();
 	void _SetDocument(const entry_ref& document);
 	void _SetModified(bool modified);
 	const char* _FileTypeLabel() const;

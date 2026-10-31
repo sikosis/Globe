@@ -228,6 +228,17 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
+	void UpdateTextRect() {
+		BRect textRect(0.0f, 0.0f, Bounds().Width(), Bounds().Height());
+		textRect.left += kLineNumberGutterWidth + 8.0f;
+		textRect.top += 8.0f;
+		textRect.right -= 8.0f;
+		textRect.bottom -= 8.0f;
+		SetTextRect(textRect);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	void Draw(BRect updateRect) override {
 		BTextView::Draw(updateRect);
 
@@ -262,6 +273,13 @@ public:
 			DrawString(lineNumber.String(), BPoint(gutter.right - numberWidth - 7,
 				linePosition.y + fontHeight.ascent));
 		}
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void FrameResized(float width, float height) override {
+		BTextView::FrameResized(width, height);
+		UpdateTextRect();
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -447,6 +465,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	}
 	_UpdateStatus();
 	Layout(true);
+	editor->UpdateTextRect();
 	Show();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
@@ -535,6 +554,8 @@ EditorWindow::OpenDocument(const entry_ref& document) {
 	_SetDocument(document);
 	_SetModified(false);
 	_ApplySyntaxHighlighting();
+	_ResetScrollPosition();
+	_UpdateStatus();
 	return B_OK;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
@@ -556,6 +577,7 @@ EditorWindow::SetAutomationSession(int64 session) {
 		SetSizeLimits(240.0f, B_SIZE_UNLIMITED, 160.0f,
 			B_SIZE_UNLIMITED);
 		Layout(true);
+		static_cast<EditorTextView*>(fTextView)->UpdateTextRect();
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
@@ -1126,6 +1148,22 @@ EditorWindow::_LaunchPreview(PendingAction action) {
 			&message);
 	}
 	return B_BAD_VALUE;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_ResetScrollPosition() {
+	fTextView->Select(0, 0);
+
+	BScrollBar* horizontal = fScrollView->ScrollBar(B_HORIZONTAL);
+	if (horizontal != nullptr)
+		horizontal->SetValue(0.0f);
+	BScrollBar* vertical = fScrollView->ScrollBar(B_VERTICAL);
+	if (vertical != nullptr)
+		vertical->SetValue(0.0f);
+
+	fTextView->ScrollTo(B_ORIGIN);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
