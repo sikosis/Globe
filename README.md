@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="screenshot/globe-31102026.png" alt="Globe">
+  <img src="screenshots/globe-31102026.png" alt="Globe">
 </p>
 
 <h1 align="center">Globe</h1>
