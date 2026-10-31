@@ -2,6 +2,7 @@
 #define GLOBE_EDITOR_WINDOW_H
 
 #include <Entry.h>
+#include <Messenger.h>
 #include <String.h>
 #include <Window.h>
 
@@ -23,6 +24,8 @@ public:
 	status_t GetSupportedSuites(BMessage* message) override;
 	bool IsPristine() const;
 	status_t OpenDocument(const entry_ref& document);
+	void SetAutomationSession(int64 session);
+	int64 AutomationSession() const;
 	void MessageReceived(BMessage* message) override;
 	bool QuitRequested() override;
 	BHandler* ResolveSpecifier(BMessage* message, int32 index,
@@ -39,6 +42,7 @@ private:
 	status_t _SaveDocument();
 	status_t _SaveDocumentAs(const entry_ref& directory, const char* name);
 	bool _HandleScriptingMessage(BMessage* message);
+	void _ReplyWithScrollState(BMessage* message);
 	void _ShowOpenPanel();
 	void _ShowSavePanel();
 	void _ApplySyntaxHighlighting();
@@ -69,6 +73,8 @@ private:
 	bool fModified;
 	bool fReadOnly;
 	bool fPresentation;
+	int64 fAutomationSession;
+	bool fPresentationMode;
 	PendingAction fPendingAction;
 };
 

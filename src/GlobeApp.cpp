@@ -7,6 +7,7 @@
 #include <Entry.h>
 #include <File.h>
 #include <Message.h>
+#include <Messenger.h>
 #include <PropertyInfo.h>
 #include <String.h>
 
@@ -71,7 +72,8 @@ GlobeApp::GlobeApp()
 	BApplication("application/x-vnd.hGlobe"),
 	fOpenedDocument(false),
 	fEditorWindowCount(0),
-	fNextDocumentID(1) {
+	fNextDocumentID(1),
+	fNextAutomationSession(1) {
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -117,6 +119,40 @@ GlobeApp::MessageReceived(BMessage* message) {
 		case kMessageNewDocument:
 			_CreateWindow()->Activate();
 			break;
+		case kMessageAutomationOpen:
+		{
+			entry_ref document;
+			BMessage reply;
+			if (message->FindRef("refs", &document) != B_OK) {
+				reply.AddInt32("status", B_BAD_VALUE);
+				message->SendReply(&reply);
+				break;
+			}
+
+			int64 session = fNextAutomationSession++;
+			EditorWindow* window = _CreateWindow();
+			if (!window->Lock()) {
+				reply.AddInt32("status", B_ERROR);
+				message->SendReply(&reply);
+				window->PostMessage(B_QUIT_REQUESTED);
+				break;
+			}
+
+			window->SetAutomationSession(session);
+			status_t status = window->OpenDocument(document);
+			BMessenger target(window);
+			window->Unlock();
+
+			reply.AddInt32("status", status);
+			if (status == B_OK) {
+				reply.AddInt64("session", session);
+				reply.AddMessenger("target", target);
+			} else {
+				window->PostMessage(B_QUIT_REQUESTED);
+			}
+			message->SendReply(&reply);
+			break;
+		}
 		case kMessageWindowClosed:
 			if (fEditorWindowCount > 0)
 				--fEditorWindowCount;

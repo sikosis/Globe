@@ -18,7 +18,11 @@ enum {
 	kMessageScheduleTagCompletion = 'gstc',
 	kMessageShowTagCompletion = 'gshc',
 	kMessageCancelTagCompletion = 'gctc',
-	kMessageWindowClosed = 'gwcl'
+	kMessageWindowClosed = 'gwcl',
+	kMessageAutomationOpen = 'gaop',
+	kMessageAutomationGetScroll = 'gags',
+	kMessageAutomationSetScroll = 'gass',
+	kMessageAutomationClose = 'gacl'
 };
 
 #endif

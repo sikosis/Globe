@@ -315,6 +315,8 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	fModified(false),
 	fReadOnly(readOnly),
 	fPresentation(presentation),
+	fAutomationSession(0),
+	fPresentationMode(false),
 	fPendingAction(PendingAction::None) {
 	fMenuBar = new BMenuBar("menu bar");
 	BMenu* fileMenu = new BMenu("File");
@@ -504,6 +506,25 @@ EditorWindow::OpenDocument(const entry_ref& document) {
 
 
 void
+EditorWindow::SetAutomationSession(int64 session) {
+	fAutomationSession = session;
+	fPresentationMode = session != 0;
+	fReadOnly = fPresentationMode;
+
+	fTextView->MakeEditable(!fPresentationMode);
+	fTextView->MakeSelectable(true);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+int64
+EditorWindow::AutomationSession() const {
+	return fAutomationSession;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
 EditorWindow::MessageReceived(BMessage* message) {
 	if ((message->what == B_GET_PROPERTY || message->what == B_SET_PROPERTY)
 		&& _HandleScriptingMessage(message)) {
@@ -599,6 +620,50 @@ EditorWindow::MessageReceived(BMessage* message) {
 			delete fTagCompletionRunner;
 			fTagCompletionRunner = nullptr;
 			break;
+		case kMessageAutomationGetScroll:
+			_ReplyWithScrollState(message);
+			break;
+		case kMessageAutomationSetScroll:
+		{
+			int64 session = 0;
+			float value = 0.0f;
+			if (message->FindInt64("session", &session) != B_OK
+				|| message->FindFloat("value", &value) != B_OK
+				|| session == 0 || session != fAutomationSession) {
+				BMessage reply;
+				reply.AddInt32("status", B_BAD_VALUE);
+				message->SendReply(&reply);
+				break;
+			}
+
+			BScrollBar* scrollBar = fTextView->ScrollBar(B_VERTICAL);
+			if (scrollBar == nullptr) {
+				BMessage reply;
+				reply.AddInt32("status", B_NO_INIT);
+				message->SendReply(&reply);
+				break;
+			}
+
+			scrollBar->SetValue(value);
+			_ReplyWithScrollState(message);
+			break;
+		}
+		case kMessageAutomationClose:
+		{
+			int64 session = 0;
+			BMessage reply;
+			if (message->FindInt64("session", &session) != B_OK
+				|| session == 0 || session != fAutomationSession) {
+				reply.AddInt32("status", B_BAD_VALUE);
+				message->SendReply(&reply);
+				break;
+			}
+
+			reply.AddInt32("status", B_OK);
+			message->SendReply(&reply);
+			PostMessage(B_QUIT_REQUESTED);
+			break;
+		}
 		case B_ABOUT_REQUESTED:
 			be_app->AboutRequested();
 			break;
@@ -642,6 +707,9 @@ EditorWindow::ResolveSpecifier(BMessage* message, int32 index,
 
 bool
 EditorWindow::QuitRequested() {
+	if (fPresentationMode)
+		return true;
+
 	if (fModified) {
 		BString message("Save changes to “");
 		message << (fHasDocument ? fDocument.name : "Untitled") << "”?";
@@ -665,6 +733,36 @@ EditorWindow::QuitRequested() {
 	}
 
 	return true;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_ReplyWithScrollState(BMessage* message) {
+	BMessage reply;
+	BScrollBar* scrollBar = fTextView->ScrollBar(B_VERTICAL);
+	if (scrollBar == nullptr) {
+		reply.AddInt32("status", B_NO_INIT);
+		message->SendReply(&reply);
+		return;
+	}
+
+	float minimum = 0.0f;
+	float maximum = 0.0f;
+	scrollBar->GetRange(&minimum, &maximum);
+
+	font_height fontHeight;
+	fTextView->GetFontHeight(&fontHeight);
+
+	reply.AddInt32("status", B_OK);
+	reply.AddBool("ready", true);
+	reply.AddInt64("session", fAutomationSession);
+	reply.AddFloat("minimum", minimum);
+	reply.AddFloat("maximum", maximum);
+	reply.AddFloat("value", scrollBar->Value());
+	reply.AddFloat("line_height",
+		fontHeight.ascent + fontHeight.descent + fontHeight.leading);
+	message->SendReply(&reply);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

@@ -81,6 +81,24 @@ untitled document, and its reply contains the new document ID in `result`.
 Closing uses `delete`, the standard `hey` verb for `B_DELETE_PROPERTY`; the
 window still follows Globe's normal unsaved-changes safeguard.
 
+### Native automation protocol
+
+Native applications such as Showreel can use four public `BMessage` commands
+from `Messages.h`:
+
+- `kMessageAutomationOpen` (`'gaop'`) opens the `entry_ref` in `refs` and
+  returns `status`, a unique non-zero `session`, and the window `target`.
+- `kMessageAutomationGetScroll` (`'gags'`) returns `status`, `ready`, `session`,
+  `minimum`, `maximum`, `value`, and `line_height`.
+- `kMessageAutomationSetScroll` (`'gass'`) accepts the matching `session` and a
+  requested float `value`, then returns the updated scroll state.
+- `kMessageAutomationClose` (`'gacl'`) accepts the matching `session` and
+  closes that automation document.
+
+Automation documents are read-only and close without a save prompt. A set or
+close request carrying a missing, zero, or mismatched session returns
+`B_BAD_VALUE`; normal editor windows are unaffected.
+
 ## Roadmap
 
 Development is proceeding in small, testable milestones:

@@ -32,6 +32,7 @@ private:
 	bool fOpenedDocument;
 	int32 fEditorWindowCount;
 	int32 fNextDocumentID;
+	int64 fNextAutomationSession;
 };
 
 #endif
