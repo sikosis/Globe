@@ -18,10 +18,11 @@ The current development version provides a small, dependable editor core:
 - standard editing commands and shortcuts;
 - protection against accidentally closing an unsaved document;
 - line numbers that remain aligned while editing and scrolling;
-- a live line, column, file-type, and modification-status display; and
+- a live line, column, file-type, and modification-status display;
 - theme-aware HTML and PHP syntax highlighting while editing;
-- previewing in Haiku's preferred browser or the Tororu document viewer; and
-- an About window preserving Globe's original credits, artwork, and licence.
+- previewing in Haiku's preferred browser or the Tororu document viewer;
+- an About window preserving Globe's original credits, artwork, and licence;
+- and a compact HTML tag toolbar with delayed tag completion after typing `<`.
 
 ## Building
 
@@ -40,8 +41,8 @@ make install
 The default destination is `/boot/home/config/non-packaged/bin`. Override it
 with `make install INSTALL_DIR=/another/path` when needed.
 
-The portable syntax-highlighter tests can be run on Haiku or another system
-with a C++17 compiler:
+The portable syntax-highlighter and tag-template tests can be run on Haiku or
+another system with a C++17 compiler:
 
 ```sh
 make test
@@ -55,7 +56,7 @@ Development is proceeding in small, testable milestones:
   type, and modification state.
 - [x] Add HTML and PHP syntax highlighting.
 - [x] Add Preview commands for Haiku's preferred browser and Tororu.
-- [ ] Port the original tag toolbar and tag-completion menu.
+- [x] Port the original tag toolbar and tag-completion menu.
 - [ ] Add preferences, session restoration, and the original icon and
   resources.
 - [ ] Package Globe as an `.hpkg`.

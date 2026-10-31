@@ -2,9 +2,11 @@
 
 #include "Messages.h"
 #include "SyntaxHighlighter.h"
+#include "TagTools.h"
 
 #include <Alert.h>
 #include <Application.h>
+#include <Button.h>
 #include <Clipboard.h>
 #include <File.h>
 #include <FilePanel.h>
@@ -15,12 +17,14 @@
 #include <MessageRunner.h>
 #include <Messenger.h>
 #include <Path.h>
+#include <PopUpMenu.h>
 #include <Roster.h>
 #include <ScrollView.h>
 #include <Size.h>
 #include <String.h>
 #include <StringView.h>
 #include <TextView.h>
+#include <View.h>
 
 #include <climits>
 #include <cstring>
@@ -31,6 +35,21 @@ namespace {
 
 const float kLineNumberGutterWidth = 52.0f;
 const bigtime_t kHighlightDelay = 150000;
+const bigtime_t kTagCompletionDelay = 300000;
+
+const char* const kHtmlTags[] = {
+	"a", "abbr", "address", "article", "aside", "audio", "b", "base",
+	"blockquote", "body", "br", "button", "canvas", "caption", "cite",
+	"code", "col", "colgroup", "data", "datalist", "dd", "del", "details",
+	"dialog", "div", "dl", "dt", "em", "embed", "fieldset", "figcaption",
+	"figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6",
+	"head", "header", "hr", "html", "i", "iframe", "img", "input", "label",
+	"legend", "li", "link", "main", "meta", "nav", "noscript", "object",
+	"ol", "optgroup", "option", "p", "picture", "pre", "q", "script",
+	"section", "select", "small", "source", "span", "strong", "style", "sub",
+	"summary", "sup", "table", "tbody", "td", "template", "textarea", "tfoot",
+	"th", "thead", "time", "title", "tr", "track", "u", "ul", "video", "wbr"
+};
 
 
 rgb_color
@@ -53,6 +72,17 @@ SyntaxColour(SyntaxKind kind) {
 			return ui_color(B_LINK_VISITED_COLOR);
 	}
 	return ui_color(B_DOCUMENT_TEXT_COLOR);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+BButton*
+TagButton(const char* label, const char* tagTemplate, const char* toolTip) {
+	BMessage* message = new BMessage(kMessageInsertTag);
+	message->AddString("template", tagTemplate);
+	BButton* button = new BButton(label, message);
+	button->SetToolTip(toolTip);
+	return button;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -120,6 +150,18 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
+	void KeyDown(const char* bytes, int32 numBytes) override {
+		BTextView::KeyDown(bytes, numBytes);
+		if (Window() == nullptr)
+			return;
+		if (numBytes == 1 && bytes[0] == '<')
+			Window()->PostMessage(kMessageScheduleTagCompletion);
+		else
+			Window()->PostMessage(kMessageCancelTagCompletion);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	void InsertText(const char* text, int32 length, int32 offset,
 		const text_run_array* runs) override {
 		BTextView::InsertText(text, length, offset, runs);
@@ -166,6 +208,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 	fTextView(nullptr),
 	fStatusView(nullptr),
 	fHighlightRunner(nullptr),
+	fTagCompletionRunner(nullptr),
 	fOpenPanel(nullptr),
 	fSavePanel(nullptr),
 	fHasDocument(false),
@@ -204,6 +247,23 @@ EditorWindow::EditorWindow(const entry_ref* document)
 		new BMessage(kMessagePreviewTororu), 'P', B_SHIFT_KEY));
 	menuBar->AddItem(previewMenu);
 
+	BView* tagToolbar = new BView("tag toolbar", B_WILL_DRAW);
+	tagToolbar->SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
+	BLayoutBuilder::Group<>(tagToolbar, B_HORIZONTAL, 3.0f)
+		.SetInsets(B_USE_SMALL_SPACING, 3.0f, B_USE_SMALL_SPACING, 3.0f)
+		.Add(TagButton("P", "<p>%c</p>", "Paragraph"))
+		.Add(TagButton("B", "<strong>%c</strong>", "Strong text"))
+		.Add(TagButton("I", "<em>%c</em>", "Emphasised text"))
+		.Add(TagButton("H1", "<h1>%c</h1>", "Heading 1"))
+		.Add(TagButton("A", "<a href=\"\">%c</a>", "Link"))
+		.Add(TagButton("IMG", "<img src=\"%c\" alt=\"\">", "Image"))
+		.Add(TagButton("DIV", "<div>%c</div>", "Division"))
+		.Add(TagButton("SPAN", "<span>%c</span>", "Inline span"))
+		.Add(TagButton("UL", "<ul>\n%c\n</ul>", "Unordered list"))
+		.Add(TagButton("LI", "<li>%c</li>", "List item"))
+		.Add(TagButton("BR", "<br>%c", "Line break"))
+		.AddGlue();
+
 	BRect textFrame(0, 0, 100, 100);
 	BRect textRect(textFrame);
 	textRect.left += kLineNumberGutterWidth + 8;
@@ -226,6 +286,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 		B_FOLLOW_ALL, 0, true, true);
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 0)
 		.Add(menuBar)
+		.Add(tagToolbar)
 		.Add(scrollView)
 		.AddGroup(B_HORIZONTAL, 0)
 			.SetInsets(B_USE_SMALL_SPACING, 2, B_USE_SMALL_SPACING, 2)
@@ -250,6 +311,7 @@ EditorWindow::EditorWindow(const entry_ref* document)
 
 EditorWindow::~EditorWindow() {
 	delete fHighlightRunner;
+	delete fTagCompletionRunner;
 	delete fOpenPanel;
 	delete fSavePanel;
 	be_app->PostMessage(kMessageWindowClosed);
@@ -380,6 +442,25 @@ EditorWindow::MessageReceived(BMessage* message) {
 			break;
 		case kMessagePreviewTororu:
 			_Preview(PendingAction::PreviewTororu);
+			break;
+		case kMessageInsertTag:
+		{
+			const char* tagTemplate = nullptr;
+			if (message->FindString("template", &tagTemplate) == B_OK)
+				_InsertTagTemplate(tagTemplate);
+			break;
+		}
+		case kMessageScheduleTagCompletion:
+			_ScheduleTagCompletion();
+			break;
+		case kMessageShowTagCompletion:
+			delete fTagCompletionRunner;
+			fTagCompletionRunner = nullptr;
+			_ShowTagCompletion();
+			break;
+		case kMessageCancelTagCompletion:
+			delete fTagCompletionRunner;
+			fTagCompletionRunner = nullptr;
 			break;
 		case B_ABOUT_REQUESTED:
 			be_app->AboutRequested();
@@ -550,6 +631,66 @@ EditorWindow::_ScheduleSyntaxHighlighting() {
 	BMessage message(kMessageHighlightDocument);
 	fHighlightRunner = new BMessageRunner(BMessenger(this), &message,
 		kHighlightDelay, 1);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_InsertTagTemplate(const char* tagTemplate) {
+	int32 selectionStart = 0;
+	int32 selectionEnd = 0;
+	fTextView->GetSelection(&selectionStart, &selectionEnd);
+	std::string selectedText(fTextView->Text() + selectionStart,
+		static_cast<std::size_t>(selectionEnd - selectionStart));
+	TagInsertion insertion = ExpandTagTemplate(tagTemplate, selectedText);
+
+	fTextView->Delete(selectionStart, selectionEnd);
+	fTextView->Select(selectionStart, selectionStart);
+	fTextView->Insert(insertion.text.c_str());
+	fTextView->Select(selectionStart + static_cast<int32>(insertion.selectionStart),
+		selectionStart + static_cast<int32>(insertion.selectionEnd));
+	fTextView->MakeFocus(true);
+	_UpdateStatus();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_ScheduleTagCompletion() {
+	delete fTagCompletionRunner;
+	BMessage message(kMessageShowTagCompletion);
+	fTagCompletionRunner = new BMessageRunner(BMessenger(this), &message,
+		kTagCompletionDelay, 1);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_ShowTagCompletion() {
+	int32 selectionStart = 0;
+	int32 selectionEnd = 0;
+	fTextView->GetSelection(&selectionStart, &selectionEnd);
+	if (selectionStart != selectionEnd || selectionStart == 0
+		|| fTextView->Text()[selectionStart - 1] != '<') {
+		return;
+	}
+
+	BPopUpMenu* menu = new BPopUpMenu("HTML tags", false, false);
+	for (const char* tag : kHtmlTags)
+		menu->AddItem(new BMenuItem(tag, nullptr));
+
+	font_height fontHeight;
+	fTextView->GetFontHeight(&fontHeight);
+	BPoint point = fTextView->PointAt(selectionStart);
+	point.y += fontHeight.ascent + fontHeight.descent + fontHeight.leading + 3.0f;
+	point = fTextView->ConvertToScreen(point);
+	BMenuItem* selected = menu->Go(point, false, true);
+	if (selected != nullptr) {
+		std::string tagTemplate = BuildHtmlTagTemplate(selected->Label());
+		fTextView->Select(selectionStart - 1, selectionStart);
+		_InsertTagTemplate(tagTemplate.c_str());
+	}
+	delete menu;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

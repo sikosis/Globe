@@ -214,7 +214,7 @@ LinkView::MouseDown(BPoint point) {
 
 AboutWindow::AboutWindow()
 	:
-	BWindow(BRect(0, 0, 520, 540), "About Globe", B_TITLED_WINDOW,
+	BWindow(BRect(0, 0, 520, 545), "About Globe", B_TITLED_WINDOW,
 		B_NOT_ZOOMABLE | B_CLOSE_ON_ESCAPE) {
 	BStringView* title = new BStringView("title", "Globe");
 	BFont titleFont(*be_bold_font);

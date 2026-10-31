@@ -14,6 +14,10 @@ enum {
 	kMessageHighlightDocument = 'ghlt',
 	kMessagePreviewBrowser = 'gpwb',
 	kMessagePreviewTororu = 'gpwt',
+	kMessageInsertTag = 'gitg',
+	kMessageScheduleTagCompletion = 'gstc',
+	kMessageShowTagCompletion = 'gshc',
+	kMessageCancelTagCompletion = 'gctc',
 	kMessageWindowClosed = 'gwcl'
 };
 

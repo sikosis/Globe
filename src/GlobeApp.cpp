@@ -19,7 +19,7 @@ main() {
 
 GlobeApp::GlobeApp()
 	:
-	BApplication("application/x-vnd.Globe"),
+	BApplication("application/x-vnd.hGlobe"),
 	fOpenedDocument(false),
 	fEditorWindowCount(0) {
 }

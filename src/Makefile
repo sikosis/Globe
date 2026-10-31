@@ -2,12 +2,13 @@
 
 NAME = Globe
 TYPE = APP
-APP_MIME_SIG = application/x-vnd.Globe
+APP_MIME_SIG = application/x-vnd.hGlobe
 
 SRCS = AboutWindow.cpp \
 	EditorWindow.cpp \
 	GlobeApp.cpp \
-	SyntaxHighlighter.cpp
+	SyntaxHighlighter.cpp \
+	TagTools.cpp
 
 RDEFS = Globe.rdef
 RSRCS =

@@ -33,6 +33,9 @@ private:
 	void _ShowSavePanel();
 	void _ApplySyntaxHighlighting();
 	void _ScheduleSyntaxHighlighting();
+	void _InsertTagTemplate(const char* tagTemplate);
+	void _ScheduleTagCompletion();
+	void _ShowTagCompletion();
 	void _Preview(PendingAction action);
 	status_t _LaunchPreview(PendingAction action);
 	void _SetDocument(const entry_ref& document);
@@ -44,6 +47,7 @@ private:
 	BTextView* fTextView;
 	BStringView* fStatusView;
 	BMessageRunner* fHighlightRunner;
+	BMessageRunner* fTagCompletionRunner;
 	BFilePanel* fOpenPanel;
 	BFilePanel* fSavePanel;
 	entry_ref fDocument;

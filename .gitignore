@@ -1,3 +1,4 @@
 src/objects*/
 tests/syntax_highlighter_test
+tests/tag_tools_test
 update-git.sh
