@@ -31,6 +31,7 @@
 #include <TranslationUtils.h>
 #include <View.h>
 
+#include <algorithm>
 #include <climits>
 #include <cstring>
 #include <strings.h>
@@ -416,7 +417,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	fStatusView->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, B_SIZE_UNSET));
 
 	fScrollView = new BScrollView("editor scroll", fTextView,
-		0, 0, true, true);
+		B_WILL_DRAW | B_FRAME_EVENTS, true, true, B_FANCY_BORDER);
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 0)
 		.Add(fMenuBar)
 		.Add(fTagToolbar)
@@ -687,6 +688,8 @@ EditorWindow::MessageReceived(BMessage* message) {
 				break;
 			}
 
+			value = std::max(0.0f, std::min(value,
+				_VerticalScrollMaximum()));
 			scrollBar->SetValue(value);
 			_ReplyWithScrollState(message);
 			break;
@@ -791,8 +794,7 @@ EditorWindow::_ReplyWithScrollState(BMessage* message) {
 	}
 
 	float minimum = 0.0f;
-	float maximum = 0.0f;
-	scrollBar->GetRange(&minimum, &maximum);
+	float maximum = _VerticalScrollMaximum();
 
 	font_height fontHeight;
 	fTextView->GetFontHeight(&fontHeight);
@@ -806,6 +808,22 @@ EditorWindow::_ReplyWithScrollState(BMessage* message) {
 	reply.AddFloat("line_height",
 		fontHeight.ascent + fontHeight.descent + fontHeight.leading);
 	message->SendReply(&reply);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+float
+EditorWindow::_VerticalScrollMaximum() const {
+	if (fTextView->TextLength() == 0)
+		return 0.0f;
+
+	font_height fontHeight;
+	fTextView->GetFontHeight(&fontHeight);
+	float lineHeight = fontHeight.ascent + fontHeight.descent
+		+ fontHeight.leading;
+	BPoint finalLine = fTextView->PointAt(fTextView->TextLength() - 1);
+	float contentBottom = finalLine.y + lineHeight + 8.0f;
+	return std::max(0.0f, contentBottom - fTextView->Bounds().Height());
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -848,10 +866,7 @@ EditorWindow::_HandleScriptingMessage(BMessage* message) {
 			return true;
 		}
 		if (property == "ScrollMaximum") {
-			float minimum = 0.0f;
-			float maximum = 0.0f;
-			scrollBar->GetRange(&minimum, &maximum);
-			SendScriptingReply(message, B_OK, maximum);
+			SendScriptingReply(message, B_OK, _VerticalScrollMaximum());
 			return true;
 		}
 		if (property == "ScrollPosition") {
@@ -876,6 +891,8 @@ EditorWindow::_HandleScriptingMessage(BMessage* message) {
 			SendScriptingReply(message, B_NO_INIT);
 			return true;
 		}
+		position = std::max(0.0f, std::min(position,
+			_VerticalScrollMaximum()));
 		scrollBar->SetValue(position);
 		SendScriptingReply(message, B_OK, scrollBar->Value());
 		return true;

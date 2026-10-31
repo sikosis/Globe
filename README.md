@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.11-f5a623" alt="Version v0.11">
+  <img src="https://img.shields.io/badge/version-v0.12-f5a623" alt="Version v0.12">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>
@@ -101,7 +101,9 @@ Automation documents are read-only and close without a save prompt. A set or
 close request carrying a missing, zero, or mismatched session returns
 `B_BAD_VALUE`; normal editor windows are unaffected. Automation windows are
 created against the current screen frame with a 24-pixel inset, hide editor
-chrome before layout, and calculate their scroll range at that final size.
+chrome before layout, and calculate their scroll range at that final size. The
+reported maximum keeps the final source line at the bottom of the visible
+editor instead of allowing it to scroll to the top above an empty viewport.
 
 ## Roadmap
 

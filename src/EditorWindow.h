@@ -45,6 +45,7 @@ private:
 	status_t _SaveDocumentAs(const entry_ref& directory, const char* name);
 	bool _HandleScriptingMessage(BMessage* message);
 	void _ReplyWithScrollState(BMessage* message);
+	float _VerticalScrollMaximum() const;
 	void _ShowOpenPanel();
 	void _ShowSavePanel();
 	void _ApplySyntaxHighlighting();
