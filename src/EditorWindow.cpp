@@ -212,10 +212,9 @@ TagButton(const char* label, const char* tagTemplate, const char* toolTip,
 
 class EditorTextView : public BTextView {
 public:
-	EditorTextView(BRect frame, BRect textRect)
+	EditorTextView()
 		:
-		BTextView(frame, "editor", textRect, B_FOLLOW_ALL,
-			B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE),
+		BTextView("editor", B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE),
 		fNotifyChanges(true) {
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------//
@@ -402,13 +401,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		.Add(TagButton("BR", "<br>%c", "Line break", "toolbar-br.png"))
 		.AddGlue();
 
-	BRect textFrame(0, 0, 100, 100);
-	BRect textRect(textFrame);
-	textRect.left += kLineNumberGutterWidth + 8;
-	textRect.top += 8;
-	textRect.right -= 8;
-	textRect.bottom -= 8;
-	EditorTextView* editor = new EditorTextView(textFrame, textRect);
+	EditorTextView* editor = new EditorTextView();
 	fTextView = editor;
 	fTextView->SetStylable(true);
 	fTextView->SetFontAndColor(be_fixed_font);
@@ -422,7 +415,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	fStatusView->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, B_SIZE_UNSET));
 
 	fScrollView = new BScrollView("editor scroll", fTextView,
-		B_FOLLOW_ALL, 0, true, true);
+		0, 0, true, true);
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 0)
 		.Add(fMenuBar)
 		.Add(fTagToolbar)
