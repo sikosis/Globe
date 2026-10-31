@@ -214,7 +214,8 @@ class EditorTextView : public BTextView {
 public:
 	EditorTextView()
 		:
-		BTextView("editor", B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE),
+		BTextView("editor", B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE
+			| B_SCROLL_VIEW_AWARE),
 		fNotifyChanges(true) {
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------//
