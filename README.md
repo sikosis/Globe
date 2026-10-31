@@ -27,6 +27,8 @@ The current development version provides a small, dependable editor core:
   resource-definition syntax highlighting while editing;
 - previewing in Haiku's preferred browser or the Tororu document viewer;
 - an About window preserving Globe's original credits, artwork, and licence;
+- Globe's original large and mini application icons for Haiku's Deskbar and
+  Tracker;
 - and a compact HTML tag toolbar using the original artwork, with delayed tag
   completion after typing `<`.
 
@@ -114,7 +116,7 @@ Development is proceeding in small, testable milestones:
   paths, read-only and presentation modes, scrolling, and closing.
 - [ ] **Priority:** Expand `hey` scripting to cover selection, saving, and
   preview operations.
-- [ ] Add session restoration and the original application icon and resources.
+- [ ] Add session restoration and the remaining original resources.
 - [ ] Package Globe as an `.hpkg`.
 
 ## Project layout
