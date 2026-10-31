@@ -274,6 +274,14 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
+	void FrameResized(float width, float height) override {
+		BTextView::FrameResized(width, height);
+		if (Window() != nullptr)
+			Window()->PostMessage(kMessageSyncScrollRange);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	void KeyDown(const char* bytes, int32 numBytes) override {
 		BTextView::KeyDown(bytes, numBytes);
 		if (Window() == nullptr)
@@ -537,6 +545,7 @@ EditorWindow::OpenDocument(const entry_ref& document) {
 	_SetModified(false);
 	_ApplySyntaxHighlighting();
 	_ResetScrollPosition();
+	_SyncScrollRange();
 	_UpdateStatus();
 	return B_OK;
 }
@@ -630,10 +639,14 @@ EditorWindow::MessageReceived(BMessage* message) {
 			break;
 		case kMessageDocumentChanged:
 			_SetModified(true);
+			_SyncScrollRange();
 			_ScheduleSyntaxHighlighting();
 			break;
 		case kMessageUpdateStatus:
 			_UpdateStatus();
+			break;
+		case kMessageSyncScrollRange:
+			_SyncScrollRange();
 			break;
 		case kMessageHighlightDocument:
 			delete fHighlightRunner;
@@ -1147,6 +1160,31 @@ EditorWindow::_ResetScrollPosition() {
 		vertical->SetValue(0.0f);
 
 	fTextView->ScrollTo(B_ORIGIN);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+EditorWindow::_SyncScrollRange() {
+	BScrollBar* scrollBar = fScrollView->ScrollBar(B_VERTICAL);
+	if (scrollBar == nullptr)
+		return;
+
+	float maximum = _VerticalScrollMaximum();
+	float viewportHeight = fTextView->Bounds().Height();
+	scrollBar->SetRange(0.0f, maximum);
+
+	font_height fontHeight;
+	fTextView->GetFontHeight(&fontHeight);
+	float lineHeight = fontHeight.ascent + fontHeight.descent
+		+ fontHeight.leading;
+	scrollBar->SetSteps(lineHeight,
+		std::max(lineHeight, viewportHeight - lineHeight));
+
+	float contentHeight = viewportHeight + maximum;
+	scrollBar->SetProportion(contentHeight > 0.0f
+		? std::min(1.0f, viewportHeight / contentHeight) : 1.0f);
+	scrollBar->SetValue(std::min(fTextView->Bounds().top, maximum));
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
