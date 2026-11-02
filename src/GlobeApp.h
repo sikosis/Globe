@@ -22,7 +22,7 @@ public:
 private:
 	EditorWindow* _CreateWindow(const entry_ref* document = nullptr,
 		bool readOnly = false, bool presentation = false,
-		int64 automationSession = 0);
+		int64 automationSession = 0, float presentationFontSize = 16.0f);
 	EditorWindow* _DocumentAt(int32 index) const;
 	EditorWindow* _DocumentByID(const char* id) const;
 	EditorWindow* _DocumentFromSpecifier(const BMessage& specifier,

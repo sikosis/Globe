@@ -11,6 +11,7 @@
 #include <PropertyInfo.h>
 #include <String.h>
 
+#include <algorithm>
 #include <cstring>
 
 namespace {
@@ -136,7 +137,11 @@ GlobeApp::MessageReceived(BMessage* message) {
 			}
 
 			int64 session = fNextAutomationSession++;
-			EditorWindow* window = _CreateWindow(&document, true, true, session);
+			float fontSize = 16.0f;
+			message->FindFloat("font_size", &fontSize);
+			fontSize = std::max(10.0f, std::min(fontSize, 28.0f));
+			EditorWindow* window = _CreateWindow(&document, true, true, session,
+				fontSize);
 			status_t status = window->InitialDocumentStatus();
 			BMessenger target(window);
 
@@ -234,12 +239,12 @@ GlobeApp::_OpenDocument(const entry_ref& document) {
 
 EditorWindow*
 GlobeApp::_CreateWindow(const entry_ref* document, bool readOnly,
-	bool presentation, int64 automationSession) {
+	bool presentation, int64 automationSession, float presentationFontSize) {
 	BString documentID;
 	documentID.SetToFormat("document-%ld",
 		static_cast<long>(fNextDocumentID++));
 	EditorWindow* window = new EditorWindow(documentID.String(), document,
-		readOnly, presentation, automationSession);
+		readOnly, presentation, automationSession, presentationFontSize);
 	++fEditorWindowCount;
 	return window;
 }

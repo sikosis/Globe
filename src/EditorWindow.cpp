@@ -11,6 +11,7 @@
 #include <Clipboard.h>
 #include <File.h>
 #include <FilePanel.h>
+#include <Font.h>
 #include <InterfaceDefs.h>
 #include <LayoutBuilder.h>
 #include <Menu.h>
@@ -326,7 +327,8 @@ ShowFileError(const char* operation, const char* path, status_t error) {
 
 
 EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
-	bool readOnly, bool presentation, int64 automationSession)
+	bool readOnly, bool presentation, int64 automationSession,
+	float presentationFontSize)
 	:
 	BWindow(EditorFrame(automationSession != 0), "Untitled — Globe",
 		B_DOCUMENT_WINDOW, B_ASYNCHRONOUS_CONTROLS),
@@ -459,6 +461,11 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		AddShortcut(B_ESCAPE, 0, new BMessage(kMessageShowreelStop));
 	_UpdateStatus();
 	Layout(true);
+	if (fPresentationMode) {
+		BFont presentationFont(*be_fixed_font);
+		presentationFont.SetSize(presentationFontSize);
+		fTextView->SetFontAndColor(&presentationFont);
+	}
 	Show();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//

@@ -18,7 +18,7 @@ class EditorWindow : public BWindow {
 public:
 	EditorWindow(const char* documentID, const entry_ref* document = nullptr,
 		bool readOnly = false, bool presentation = false,
-		int64 automationSession = 0);
+		int64 automationSession = 0, float presentationFontSize = 16.0f);
 	~EditorWindow() override;
 
 	const char* DocumentID() const;

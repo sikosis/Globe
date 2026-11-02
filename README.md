@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.16-f5a623" alt="Version v0.16">
+  <img src="https://img.shields.io/badge/version-v0.18-f5a623" alt="Version v0.18">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>
@@ -108,6 +108,8 @@ scrollbar synchronised, and stops with the final source line at the bottom.
 Launching Globe with `--automation` suppresses the normal empty Untitled window
 while a controller creates its presentation document. In a ShowReel-owned
 presentation window, Escape sends a stop request back to ShowReel.
+Automation clients may include a `font_size` float when opening a presentation;
+it affects only that temporary read-only document and is clamped to 10–28 pt.
 
 ## Roadmap
 
