@@ -113,14 +113,17 @@ main() {
 		"#endif\n";
 	std::vector<SyntaxSpan> headerSpans
 		= BuildSyntaxSpans(header, SyntaxLanguage::Cpp);
-	ExpectSpan(header, headerSpans, SyntaxKind::Tag, "#ifndef");
+	ExpectSpan(header, headerSpans, SyntaxKind::Preprocessor, "#ifndef");
 	ExpectSpan(header, headerSpans, SyntaxKind::Entity, "EDITOR_WINDOW_H");
-	ExpectSpan(header, headerSpans, SyntaxKind::Tag, "#include");
+	ExpectSpan(header, headerSpans, SyntaxKind::Preprocessor, "#include");
 	ExpectSpan(header, headerSpans, SyntaxKind::String, "<Window.h>");
 	ExpectSpan(header, headerSpans, SyntaxKind::Keyword, "class");
 	ExpectSpan(header, headerSpans, SyntaxKind::Keyword, "public");
-	ExpectSpan(header, headerSpans, SyntaxKind::Attribute, "BWindow");
+	ExpectSpan(header, headerSpans, SyntaxKind::Type, "EditorWindow");
+	ExpectSpan(header, headerSpans, SyntaxKind::Type, "BWindow");
 	ExpectSpan(header, headerSpans, SyntaxKind::Keyword, "const");
+	ExpectSpan(header, headerSpans, SyntaxKind::Type, "int32");
+	ExpectSpan(header, headerSpans, SyntaxKind::Function, "Open");
 	ExpectSpan(header, headerSpans, SyntaxKind::Number, "42");
 	ExpectSpan(header, headerSpans, SyntaxKind::Comment,
 		"// opens a document");

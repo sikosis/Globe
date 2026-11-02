@@ -20,6 +20,9 @@ enum class SyntaxKind {
 	Comment,
 	Entity,
 	Keyword,
+	Preprocessor,
+	Type,
+	Function,
 	Variable,
 	Number
 };

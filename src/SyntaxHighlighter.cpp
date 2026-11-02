@@ -107,6 +107,20 @@ IsCppKeyword(const std::string& word) {
 
 
 bool
+IsCppType(const std::string& word) {
+	static const std::unordered_set<std::string> types = {
+		"bool", "char", "char8_t", "char16_t", "char32_t", "double",
+		"float", "int", "long", "short", "signed", "unsigned", "void",
+		"wchar_t", "auto", "size_t", "ssize_t", "ptrdiff_t", "int8",
+		"int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64",
+		"off_t", "status_t", "bigtime_t"
+	};
+	return types.find(word) != types.end();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+bool
 IsCppConstant(const std::string& word) {
 	bool hasLetter = false;
 	for (char character : word) {
@@ -153,7 +167,7 @@ HighlightCppRange(const std::string& text, std::size_t start,
 				&& IsIdentifierCharacter(text[directiveEnd])) {
 				++directiveEnd;
 			}
-			AddSpan(spans, offset, directiveEnd, SyntaxKind::Tag);
+			AddSpan(spans, offset, directiveEnd, SyntaxKind::Preprocessor);
 			offset = directiveEnd;
 			continue;
 		}
@@ -192,14 +206,23 @@ HighlightCppRange(const std::string& text, std::size_t start,
 			while (wordEnd < end && IsIdentifierCharacter(text[wordEnd]))
 				++wordEnd;
 			std::string word = text.substr(offset, wordEnd - offset);
-			if (IsCppKeyword(word))
+			std::size_t next = wordEnd;
+			while (next < end
+				&& std::isspace(static_cast<unsigned char>(text[next]))) {
+				++next;
+			}
+			if (IsCppType(word))
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Type);
+			else if (IsCppKeyword(word))
 				AddSpan(spans, offset, wordEnd, SyntaxKind::Keyword);
 			else if (IsCppConstant(word))
 				AddSpan(spans, offset, wordEnd, SyntaxKind::Entity);
-			else if (word.size() > 1 && word[0] == 'B'
-				&& std::isupper(static_cast<unsigned char>(word[1]))) {
-				AddSpan(spans, offset, wordEnd, SyntaxKind::Attribute);
-			}
+			else if (next < end && text[next] == '(')
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Function);
+			else if ((word.size() > 1 && word[0] == 'B'
+				&& std::isupper(static_cast<unsigned char>(word[1])))
+				|| std::isupper(static_cast<unsigned char>(word[0])))
+				AddSpan(spans, offset, wordEnd, SyntaxKind::Type);
 			offset = wordEnd;
 			continue;
 		}

@@ -145,19 +145,39 @@ SendScriptingReply(BMessage* request, status_t error, float result) {
 //---------------------------------------------------------------------------------------------------------------------------------//
 
 
-rgb_color
-SyntaxColour(SyntaxKind kind) {
+bool
+UsesDarkEditorBackground() {
 	rgb_color background = ui_color(B_DOCUMENT_BACKGROUND_COLOR);
 	int32 luminance = (299 * background.red + 587 * background.green
 		+ 114 * background.blue) / 1000;
-	if (luminance < 128) {
+	return luminance < 128;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+rgb_color
+SyntaxBaseColour() {
+	return UsesDarkEditorBackground()
+		? rgb_color{220, 224, 232, 255}
+		: rgb_color{35, 40, 48, 255};
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+rgb_color
+SyntaxColour(SyntaxKind kind) {
+	if (UsesDarkEditorBackground()) {
 		switch (kind) {
 			case SyntaxKind::Tag:
+			case SyntaxKind::Preprocessor:
 				return {120, 180, 255, 255};
 			case SyntaxKind::Keyword:
 				return {203, 166, 247, 255};
 			case SyntaxKind::Attribute:
+			case SyntaxKind::Type:
 				return {112, 210, 215, 255};
+			case SyntaxKind::Function:
+				return {255, 213, 128, 255};
 			case SyntaxKind::String:
 				return {166, 218, 149, 255};
 			case SyntaxKind::Number:
@@ -172,22 +192,27 @@ SyntaxColour(SyntaxKind kind) {
 
 	switch (kind) {
 		case SyntaxKind::Tag:
+		case SyntaxKind::Preprocessor:
+			return {0, 92, 185, 255};
 		case SyntaxKind::Keyword:
-			return ui_color(B_LINK_TEXT_COLOR);
+			return {122, 62, 157, 255};
 		case SyntaxKind::Attribute:
-			return ui_color(B_NAVIGATION_BASE_COLOR);
+		case SyntaxKind::Type:
+			return {0, 105, 125, 255};
+		case SyntaxKind::Function:
+			return {121, 94, 0, 255};
 		case SyntaxKind::String:
+			return {36, 121, 45, 255};
 		case SyntaxKind::Number:
-			return ui_color(B_SUCCESS_COLOR);
+			return {176, 74, 0, 255};
 		case SyntaxKind::Comment:
-			return tint_color(ui_color(B_DOCUMENT_TEXT_COLOR),
-				B_DISABLED_LABEL_TINT);
+			return {104, 115, 125, 255};
 		case SyntaxKind::Entity:
-			return ui_color(B_CONTROL_MARK_COLOR);
+			return {138, 82, 0, 255};
 		case SyntaxKind::Variable:
-			return ui_color(B_LINK_VISITED_COLOR);
+			return {145, 60, 125, 255};
 	}
-	return ui_color(B_DOCUMENT_TEXT_COLOR);
+	return SyntaxBaseColour();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -1026,7 +1051,7 @@ EditorWindow::_ShowSavePanel() {
 void
 EditorWindow::_ApplySyntaxHighlighting() {
 	int32 textLength = fTextView->TextLength();
-	rgb_color baseColour = ui_color(B_DOCUMENT_TEXT_COLOR);
+	rgb_color baseColour = SyntaxBaseColour();
 	BFont font(*be_fixed_font);
 	if (textLength == 0) {
 		fTextView->SetFontAndColor(&font, B_FONT_ALL, &baseColour);

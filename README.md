@@ -24,7 +24,9 @@ The current development version provides a small, dependable editor core:
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display;
 - theme-aware HTML, PHP, C/C++ header and source, and Haiku
-  resource-definition syntax highlighting while editing;
+  resource-definition syntax highlighting while editing, with distinct C/C++
+  colours for preprocessors, types, functions, keywords, constants, strings,
+  numbers, and comments;
 - previewing in Haiku's preferred browser or the Tororu document viewer;
 - an About window preserving Globe's original credits, artwork, and licence;
 - Globe's original large and mini application icons for Haiku's Deskbar and
