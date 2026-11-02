@@ -500,7 +500,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		int32 textLength = fTextView->TextLength();
 		if (textLength > 0) {
 			fTextView->SetFontAndColor(0, textLength, &presentationFont,
-				B_FONT_ALL);
+				B_FONT_SIZE);
 		} else
 			fTextView->SetFontAndColor(&presentationFont);
 	}
