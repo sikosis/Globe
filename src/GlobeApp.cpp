@@ -71,6 +71,7 @@ GlobeApp::GlobeApp()
 	:
 	BApplication("application/x-vnd.hGlobe"),
 	fOpenedDocument(false),
+	fAutomationLaunch(false),
 	fEditorWindowCount(0),
 	fNextDocumentID(1),
 	fNextAutomationSession(1) {
@@ -88,6 +89,11 @@ GlobeApp::AboutRequested() {
 void
 GlobeApp::ArgvReceived(int32 argc, char** argv) {
 	for (int32 index = 1; index < argc; ++index) {
+		if (strcmp(argv[index], "--automation") == 0) {
+			fAutomationLaunch = true;
+			continue;
+		}
+
 		entry_ref document;
 		if (get_ref_for_path(argv[index], &document) == B_OK)
 			_OpenDocument(document);
@@ -160,7 +166,7 @@ GlobeApp::MessageReceived(BMessage* message) {
 
 void
 GlobeApp::ReadyToRun() {
-	if (!fOpenedDocument)
+	if (!fOpenedDocument && !fAutomationLaunch)
 		_CreateWindow();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//

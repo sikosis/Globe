@@ -11,6 +11,7 @@
 #include <Clipboard.h>
 #include <File.h>
 #include <FilePanel.h>
+#include <InterfaceDefs.h>
 #include <LayoutBuilder.h>
 #include <Menu.h>
 #include <MenuBar.h>
@@ -454,6 +455,8 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		std::min(Frame().Height(), maximumHeight));
 	if (!fPresentationMode)
 		CenterOnScreen();
+	else
+		AddShortcut(B_ESCAPE, 0, new BMessage(kMessageShowreelStop));
 	_UpdateStatus();
 	Layout(true);
 	Show();
@@ -725,6 +728,13 @@ EditorWindow::MessageReceived(BMessage* message) {
 			reply.AddInt32("status", B_OK);
 			message->SendReply(&reply);
 			PostMessage(B_QUIT_REQUESTED);
+			break;
+		}
+		case kMessageShowreelStop:
+		{
+			BMessenger showreel("application/x-vnd.ShowReel");
+			if (fAutomationSession != 0 && showreel.IsValid())
+				showreel.SendMessage(kMessageShowreelStop);
 			break;
 		}
 		case B_ABOUT_REQUESTED:

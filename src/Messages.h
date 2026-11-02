@@ -22,7 +22,8 @@ enum {
 	kMessageAutomationOpen = 'gaop',
 	kMessageAutomationGetScroll = 'gags',
 	kMessageAutomationSetScroll = 'gass',
-	kMessageAutomationClose = 'gacl'
+	kMessageAutomationClose = 'gacl',
+	kMessageShowreelStop = 'srst'
 };
 
 #endif

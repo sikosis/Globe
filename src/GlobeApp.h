@@ -31,6 +31,7 @@ private:
 	void _OpenDocument(const entry_ref& document);
 
 	bool fOpenedDocument;
+	bool fAutomationLaunch;
 	int32 fEditorWindowCount;
 	int32 fNextDocumentID;
 	int64 fNextAutomationSession;

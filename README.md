@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.14-f5a623" alt="Version v0.14">
+  <img src="https://img.shields.io/badge/version-v0.16-f5a623" alt="Version v0.16">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>
@@ -105,6 +105,9 @@ chrome before layout, and calculate their scroll range at that final size. The
 reported maximum comes from the document's measured text height and visible
 editor height. Automation scrolls the text view directly, while keeping its
 scrollbar synchronised, and stops with the final source line at the bottom.
+Launching Globe with `--automation` suppresses the normal empty Untitled window
+while a controller creates its presentation document. In a ShowReel-owned
+presentation window, Escape sends a stop request back to ShowReel.
 
 ## Roadmap
 
