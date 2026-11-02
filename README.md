@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.18-f5a623" alt="Version v0.18">
+  <img src="https://img.shields.io/badge/version-v0.19-f5a623" alt="Version v0.19">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>

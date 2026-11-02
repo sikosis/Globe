@@ -214,11 +214,12 @@ TagButton(const char* label, const char* tagTemplate, const char* toolTip,
 
 class EditorTextView : public BTextView {
 public:
-	EditorTextView()
+	EditorTextView(bool presentation)
 		:
 		BTextView("editor", B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE
 			| B_SCROLL_VIEW_AWARE),
-		fNotifyChanges(true) {
+		fNotifyChanges(true),
+		fPresentation(presentation) {
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -276,6 +277,12 @@ public:
 
 
 	void KeyDown(const char* bytes, int32 numBytes) override {
+		if (fPresentation && numBytes == 1 && bytes[0] == B_ESCAPE) {
+			if (Window() != nullptr)
+				Window()->PostMessage(kMessageShowreelStop);
+			return;
+		}
+
 		BTextView::KeyDown(bytes, numBytes);
 		if (Window() == nullptr)
 			return;
@@ -310,6 +317,7 @@ public:
 
 private:
 	bool fNotifyChanges;
+	bool fPresentation;
 };
 
 
@@ -405,7 +413,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		.Add(TagButton("BR", "<br>%c", "Line break", "toolbar-br.png"))
 		.AddGlue();
 
-	EditorTextView* editor = new EditorTextView();
+	EditorTextView* editor = new EditorTextView(fPresentationMode);
 	fTextView = editor;
 	fTextView->SetStylable(true);
 	fTextView->SetFontAndColor(be_fixed_font);
@@ -464,7 +472,12 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	if (fPresentationMode) {
 		BFont presentationFont(*be_fixed_font);
 		presentationFont.SetSize(presentationFontSize);
-		fTextView->SetFontAndColor(&presentationFont);
+		int32 textLength = fTextView->TextLength();
+		if (textLength > 0) {
+			fTextView->SetFontAndColor(0, textLength, &presentationFont,
+				B_FONT_ALL);
+		} else
+			fTextView->SetFontAndColor(&presentationFont);
 	}
 	Show();
 }
