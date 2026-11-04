@@ -5,10 +5,10 @@ resource app_signature "application/x-vnd.hGlobe";
 resource app_version {
 	major = 0,
 	middle = 5,
-	minor = 4,
+	minor = 5,
 	variety = B_APPV_DEVELOPMENT,
 	internal = 0,
-	short_info = "Globe 0.54",
+	short_info = "Globe 0.55",
 	long_info = "Globe web editor"
 };
 
@@ -68,6 +68,7 @@ resource mini_icon array {
 
 resource file_types message {
 	"types" = "text/html",
+	"types" = "text/markdown",
 	"types" = "text/x-php",
 	"types" = "text/plain"
 };

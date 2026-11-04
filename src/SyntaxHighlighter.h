@@ -11,7 +11,8 @@ enum class SyntaxLanguage {
 	Php,
 	Rdef,
 	Cpp,
-	Makefile
+	Makefile,
+	Markdown
 };
 
 enum class SyntaxKind {

@@ -279,6 +279,149 @@ HighlightMakefileRange(const std::string& text, std::size_t start,
 
 
 void
+HighlightMarkdownInline(const std::string& text, std::size_t start,
+	std::size_t end, std::vector<SyntaxSpan>& spans) {
+	std::size_t offset = start;
+	while (offset < end) {
+		if (text[offset] == '`') {
+			std::size_t codeEnd = text.find('`', offset + 1);
+			codeEnd = codeEnd == std::string::npos || codeEnd >= end
+				? end : codeEnd + 1;
+			AddSpan(spans, offset, codeEnd, SyntaxKind::String);
+			offset = codeEnd;
+			continue;
+		}
+		if (text[offset] == '!' && offset + 1 < end
+			&& text[offset + 1] == '[') {
+			std::size_t labelEnd = text.find("](", offset + 2);
+			std::size_t linkEnd = labelEnd == std::string::npos
+				? std::string::npos : text.find(')', labelEnd + 2);
+			if (linkEnd < end) {
+				AddSpan(spans, offset, offset + 2,
+					SyntaxKind::MarkupDelimiter);
+				AddSpan(spans, offset + 2, labelEnd, SyntaxKind::Attribute);
+				AddSpan(spans, labelEnd, labelEnd + 2,
+					SyntaxKind::MarkupDelimiter);
+				AddSpan(spans, labelEnd + 2, linkEnd, SyntaxKind::Entity);
+				AddSpan(spans, linkEnd, linkEnd + 1,
+					SyntaxKind::MarkupDelimiter);
+				offset = linkEnd + 1;
+				continue;
+			}
+		}
+		if (text[offset] == '[') {
+			std::size_t labelEnd = text.find("](", offset + 1);
+			std::size_t linkEnd = labelEnd == std::string::npos
+				? std::string::npos : text.find(')', labelEnd + 2);
+			if (linkEnd < end) {
+				AddSpan(spans, offset, offset + 1,
+					SyntaxKind::MarkupDelimiter);
+				AddSpan(spans, offset + 1, labelEnd, SyntaxKind::Attribute);
+				AddSpan(spans, labelEnd, labelEnd + 2,
+					SyntaxKind::MarkupDelimiter);
+				AddSpan(spans, labelEnd + 2, linkEnd, SyntaxKind::Entity);
+				AddSpan(spans, linkEnd, linkEnd + 1,
+					SyntaxKind::MarkupDelimiter);
+				offset = linkEnd + 1;
+				continue;
+			}
+		}
+		if (text[offset] == '*' || text[offset] == '_') {
+			char marker = text[offset];
+			std::size_t markerLength = offset + 1 < end
+				&& text[offset + 1] == marker ? 2 : 1;
+			std::string closing(markerLength, marker);
+			std::size_t emphasisEnd = text.find(closing,
+				offset + markerLength);
+			if (emphasisEnd < end) {
+				AddSpan(spans, offset, offset + markerLength,
+					SyntaxKind::MarkupDelimiter);
+				AddSpan(spans, offset + markerLength, emphasisEnd,
+					markerLength == 2 ? SyntaxKind::Keyword : SyntaxKind::Type);
+				AddSpan(spans, emphasisEnd, emphasisEnd + markerLength,
+					SyntaxKind::MarkupDelimiter);
+				offset = emphasisEnd + markerLength;
+				continue;
+			}
+		}
+		++offset;
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+HighlightMarkdownRange(const std::string& text, std::size_t start,
+	std::size_t end, std::vector<SyntaxSpan>& spans) {
+	std::size_t lineStart = start;
+	bool inFence = false;
+	while (lineStart < end) {
+		std::size_t lineEnd = text.find('\n', lineStart);
+		if (lineEnd == std::string::npos || lineEnd > end)
+			lineEnd = end;
+		std::size_t contentStart = FirstNonWhitespace(text, lineStart, lineEnd);
+
+		if (text.compare(contentStart, 3, "```") == 0
+			|| text.compare(contentStart, 3, "~~~") == 0) {
+			AddSpan(spans, contentStart, lineEnd, SyntaxKind::Preprocessor);
+			inFence = !inFence;
+		} else if (inFence) {
+			AddSpan(spans, lineStart, lineEnd, SyntaxKind::String);
+		} else if (text.compare(contentStart, 4, "<!--") == 0) {
+			std::size_t commentEnd = text.find("-->", contentStart + 4);
+			commentEnd = commentEnd == std::string::npos || commentEnd > lineEnd
+				? lineEnd : commentEnd + 3;
+			AddSpan(spans, contentStart, commentEnd, SyntaxKind::Comment);
+		} else {
+			std::size_t inlineStart = contentStart;
+			if (contentStart < lineEnd && text[contentStart] == '#') {
+				std::size_t markerEnd = contentStart;
+				while (markerEnd < lineEnd && text[markerEnd] == '#')
+					++markerEnd;
+				if (markerEnd - contentStart <= 6 && markerEnd < lineEnd
+					&& std::isspace(static_cast<unsigned char>(text[markerEnd]))) {
+					AddSpan(spans, contentStart, markerEnd,
+						SyntaxKind::Preprocessor);
+					inlineStart = FirstNonWhitespace(text, markerEnd, lineEnd);
+					AddSpan(spans, inlineStart, lineEnd, SyntaxKind::Tag);
+				}
+			} else if (contentStart < lineEnd && text[contentStart] == '>') {
+				AddSpan(spans, contentStart, contentStart + 1,
+					SyntaxKind::MarkupDelimiter);
+				inlineStart = FirstNonWhitespace(text, contentStart + 1, lineEnd);
+			} else if (contentStart + 1 < lineEnd
+				&& (text[contentStart] == '-' || text[contentStart] == '*'
+					|| text[contentStart] == '+')
+				&& std::isspace(static_cast<unsigned char>(
+					text[contentStart + 1]))) {
+				AddSpan(spans, contentStart, contentStart + 1,
+					SyntaxKind::Keyword);
+				inlineStart = FirstNonWhitespace(text, contentStart + 1, lineEnd);
+			} else if (contentStart < lineEnd
+				&& std::isdigit(static_cast<unsigned char>(text[contentStart]))) {
+				std::size_t markerEnd = contentStart + 1;
+				while (markerEnd < lineEnd && std::isdigit(
+					static_cast<unsigned char>(text[markerEnd]))) {
+					++markerEnd;
+				}
+				if (markerEnd + 1 < lineEnd && text[markerEnd] == '.'
+					&& std::isspace(static_cast<unsigned char>(
+						text[markerEnd + 1]))) {
+					AddSpan(spans, contentStart, markerEnd + 1,
+						SyntaxKind::Keyword);
+					inlineStart = FirstNonWhitespace(text, markerEnd + 1,
+						lineEnd);
+				}
+			}
+			HighlightMarkdownInline(text, inlineStart, lineEnd, spans);
+		}
+		lineStart = lineEnd < end ? lineEnd + 1 : end;
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
 HighlightCppRange(const std::string& text, std::size_t start,
 	std::size_t end, std::vector<SyntaxSpan>& spans) {
 	std::size_t offset = start;
@@ -647,6 +790,10 @@ BuildSyntaxSpans(const std::string& text, SyntaxLanguage language) {
 	}
 	if (language == SyntaxLanguage::Makefile) {
 		HighlightMakefileRange(text, 0, text.size(), spans);
+		return spans;
+	}
+	if (language == SyntaxLanguage::Markdown) {
+		HighlightMarkdownRange(text, 0, text.size(), spans);
 		return spans;
 	}
 

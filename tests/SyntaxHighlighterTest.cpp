@@ -162,6 +162,32 @@ main() {
 	ExpectSpan(makefile, makefileSpans, SyntaxKind::Comment,
 		"# remove build output");
 
+	const std::string markdown
+		= "# Globe Markdown\n\n"
+		"> A quoted **statement** with [a link](https://example.com).\n"
+		"- An *emphasised* item with `inline code`\n"
+		"1. An ordered item\n\n"
+		"```cpp\n"
+		"int main();\n"
+		"```\n"
+		"<!-- hidden note -->\n";
+	std::vector<SyntaxSpan> markdownSpans
+		= BuildSyntaxSpans(markdown, SyntaxLanguage::Markdown);
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Preprocessor, "#");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Tag, "Globe Markdown");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::MarkupDelimiter, ">");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Keyword, "statement");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Attribute, "a link");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Entity,
+		"https://example.com");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Type, "emphasised");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::String, "`inline code`");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Keyword, "1.");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Preprocessor, "```cpp");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::String, "int main();");
+	ExpectSpan(markdown, markdownSpans, SyntaxKind::Comment,
+		"<!-- hidden note -->");
+
 	if (!BuildSyntaxSpans(html, SyntaxLanguage::PlainText).empty()) {
 		std::cerr << "Plain text unexpectedly produced highlighted spans\n";
 		return EXIT_FAILURE;

@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.54-f5a623" alt="Version v0.54">
+  <img src="https://img.shields.io/badge/version-v0.55-f5a623" alt="Version v0.55">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>
@@ -23,12 +23,13 @@ The current development version provides a small, dependable editor core:
 - protection against accidentally closing an unsaved document;
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display;
-- theme-aware HTML, PHP, C/C++ header and source, Makefile, and Haiku
+- theme-aware HTML, PHP, Markdown, C/C++ header and source, Makefile, and Haiku
   resource-definition syntax highlighting while editing, including distinct
   HTML delimiter, tag, attribute, string, entity, and comment colours and
   distinct C/C++ colours for preprocessors, types, functions, keywords,
   constants, strings, numbers, and comments;
-- previewing in Haiku's preferred browser or the Tororu document viewer;
+- previewing in Haiku's preferred browser or the Tororu document viewer,
+  including rendered Markdown previews in Tororu;
 - an About window preserving Globe's original credits, artwork, and licence;
 - Globe's original large and mini application icons for Haiku's Deskbar and
   Tracker;
@@ -135,7 +136,8 @@ Development is proceeding in small, testable milestones:
 
 - [x] Add line numbers and a status bar showing the current line, column, file
   type, and modification state.
-- [x] Add HTML, PHP, C/C++, and Haiku resource-definition syntax highlighting.
+- [x] Add HTML, PHP, Markdown, C/C++, Makefile, and Haiku
+  resource-definition syntax highlighting.
 - [x] Add Preview commands for Haiku's preferred browser and Tororu.
 - [x] Port the original tag toolbar and tag-completion menu.
 - [ ] **Priority:** Add configurable syntax colours and editor display

@@ -1526,6 +1526,8 @@ EditorWindow::_ApplySyntaxHighlighting() {
 		language = SyntaxLanguage::Cpp;
 	else if (strcmp(_FileTypeLabel(), "Makefile") == 0)
 		language = SyntaxLanguage::Makefile;
+	else if (strcmp(_FileTypeLabel(), "Markdown") == 0)
+		language = SyntaxLanguage::Markdown;
 	if (language == SyntaxLanguage::PlainText)
 		return;
 
@@ -1743,6 +1745,12 @@ EditorWindow::_FileTypeLabel() const {
 	if (strcasecmp(extension, ".php") == 0
 		|| strcasecmp(extension, ".phtml") == 0) {
 		return "PHP";
+	}
+	if (strcasecmp(extension, ".md") == 0
+		|| strcasecmp(extension, ".markdown") == 0
+		|| strcasecmp(extension, ".mdown") == 0
+		|| strcasecmp(extension, ".mkd") == 0) {
+		return "Markdown";
 	}
 	if (strcasecmp(extension, ".rdef") == 0)
 		return "Resource definition";
