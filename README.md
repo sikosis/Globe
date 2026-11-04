@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.52-f5a623" alt="Version v0.52">
+  <img src="https://img.shields.io/badge/version-v0.54-f5a623" alt="Version v0.54">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>
@@ -41,6 +41,9 @@ The current development version provides a small, dependable editor core:
 Typing `<` opens Globe's launcher with HTML tags selected. Type to filter the
 list, use the arrow keys to move, press Enter to insert, or Escape to cancel.
 Pressing `` ` `` while the launcher is open toggles between tags and snippets.
+Paired tags leave the caret between their opening and closing tags. HTML void
+elements use XHTML-compatible forms such as `<br />` and leave the caret after
+the tag.
 
 Snippet mode reads every regular file in the automatically created
 `Globe/snippets` directory inside Haiku's user settings directory. The filename

@@ -1180,6 +1180,8 @@ EditorWindow::MessageReceived(BMessage* message) {
 			break;
 		case kMessageTagLauncherClosed:
 			fTagLauncher = nullptr;
+			Activate(true);
+			fTextView->MakeFocus(true);
 			break;
 		case kMessageAutomationGetScroll:
 			_ReplyWithScrollState(message);

@@ -27,9 +27,9 @@ BuildHtmlTagTemplate(const std::string& tagName) {
 	};
 
 	if (tagName == "img")
-		return "<img src=\"%c\" alt=\"\">";
+		return "<img src=\"%c\" alt=\"\" />";
 	if (voidElements.find(tagName) != voidElements.end())
-		return "<" + tagName + ">%c";
+		return "<" + tagName + " />%c";
 	return "<" + tagName + ">%c</" + tagName + ">";
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
