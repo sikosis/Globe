@@ -42,6 +42,7 @@
 namespace {
 
 const float kLineNumberGutterWidth = 52.0f;
+const float kEditorBorderInset = 2.0f;
 const bigtime_t kHighlightDelay = 150000;
 const bigtime_t kTagCompletionDelay = 300000;
 const float kAutomationScreenInset = 24.0f;
@@ -244,7 +245,9 @@ public:
 		BTextView("editor", B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE
 			| B_SCROLL_VIEW_AWARE),
 		fNotifyChanges(true),
-		fPresentation(presentation) {
+		fPresentation(presentation),
+		fLineNumberView(nullptr),
+		fLastScrollTop(-1.0f) {
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -255,46 +258,25 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
+	void SetLineNumberView(BView* lineNumberView) {
+		fLineNumberView = lineNumberView;
+		InvalidateLineNumbers();
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void InvalidateLineNumbers() {
+		if (fLineNumberView != nullptr)
+			fLineNumberView->Invalidate();
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	void Draw(BRect updateRect) override {
-		BRect gutter(Bounds());
-		gutter.right = gutter.left + kLineNumberGutterWidth;
-		BRect textUpdate(updateRect);
-		textUpdate.left = std::max(textUpdate.left, gutter.right + 1.0f);
-		if (textUpdate.IsValid())
-			BTextView::Draw(textUpdate);
-
-		BRect gutterUpdate = gutter & updateRect;
-		if (!gutterUpdate.IsValid())
-			return;
-
-		SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-		FillRect(gutterUpdate);
-
-		SetHighColor(tint_color(ui_color(B_PANEL_BACKGROUND_COLOR),
-			B_DARKEN_2_TINT));
-		StrokeLine(BPoint(gutter.right, gutterUpdate.top),
-			BPoint(gutter.right, gutterUpdate.bottom));
-
-		font_height fontHeight;
-		GetFontHeight(&fontHeight);
-		SetLowColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-		SetHighColor(tint_color(ui_color(B_PANEL_TEXT_COLOR),
-			B_DISABLED_LABEL_TINT));
-
-		int32 firstLine = LineAt(BPoint(TextRect().left, gutterUpdate.top));
-		int32 lastLine = LineAt(BPoint(TextRect().left, gutterUpdate.bottom));
-		if (firstLine < 0)
-			firstLine = 0;
-		if (lastLine >= CountLines())
-			lastLine = CountLines() - 1;
-
-		for (int32 line = firstLine; line <= lastLine; ++line) {
-			BPoint linePosition = PointAt(OffsetAt(line));
-			BString lineNumber;
-			lineNumber << line + 1;
-			float numberWidth = StringWidth(lineNumber.String());
-			DrawString(lineNumber.String(), BPoint(gutter.right - numberWidth - 7,
-				linePosition.y + fontHeight.ascent));
+		BTextView::Draw(updateRect);
+		if (Bounds().top != fLastScrollTop) {
+			fLastScrollTop = Bounds().top;
+			InvalidateLineNumbers();
 		}
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------//
@@ -331,7 +313,7 @@ public:
 		int32 previousLineCount = CountLines();
 		BTextView::InsertText(text, length, offset, runs);
 		if (CountLines() != previousLineCount)
-			InvalidateGutter();
+			InvalidateLineNumbers();
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -342,7 +324,7 @@ public:
 		int32 previousLineCount = CountLines();
 		BTextView::DeleteText(fromOffset, toOffset);
 		if (CountLines() != previousLineCount)
-			InvalidateGutter();
+			InvalidateLineNumbers();
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -350,15 +332,68 @@ public:
 
 
 private:
-	void InvalidateGutter() {
-		Invalidate(BRect(Bounds().left, Bounds().top,
-			Bounds().left + kLineNumberGutterWidth, Bounds().bottom));
+	bool fNotifyChanges;
+	bool fPresentation;
+	BView* fLineNumberView;
+	float fLastScrollTop;
+};
+
+
+class LineNumberView : public BView {
+public:
+	LineNumberView(EditorTextView* textView)
+		:
+		BView("line numbers", B_WILL_DRAW),
+		fTextView(textView) {
+		SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
+		SetExplicitMinSize(BSize(kLineNumberGutterWidth, 0.0f));
+		SetExplicitMaxSize(BSize(kLineNumberGutterWidth, B_SIZE_UNLIMITED));
 	}
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
-	bool fNotifyChanges;
-	bool fPresentation;
+	void Draw(BRect updateRect) override {
+		SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+		FillRect(updateRect);
+
+		BRect bounds(Bounds());
+		SetHighColor(tint_color(ui_color(B_PANEL_BACKGROUND_COLOR),
+			B_DARKEN_2_TINT));
+		StrokeLine(BPoint(bounds.right, updateRect.top),
+			BPoint(bounds.right, updateRect.bottom));
+
+		BFont font;
+		fTextView->GetFont(&font);
+		SetFont(&font);
+		font_height fontHeight;
+		GetFontHeight(&fontHeight);
+		SetLowColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+		SetHighColor(tint_color(ui_color(B_PANEL_TEXT_COLOR),
+			B_DISABLED_LABEL_TINT));
+
+		BRect textBounds(fTextView->Bounds());
+		int32 firstLine = fTextView->LineAt(BPoint(
+			fTextView->TextRect().left, textBounds.top));
+		int32 lastLine = fTextView->LineAt(BPoint(
+			fTextView->TextRect().left, textBounds.bottom));
+		firstLine = std::max(0, firstLine);
+		lastLine = std::min(lastLine, fTextView->CountLines() - 1);
+
+		for (int32 line = firstLine; line <= lastLine; ++line) {
+			BPoint linePosition = fTextView->PointAt(fTextView->OffsetAt(line));
+			BString lineNumber;
+			lineNumber << line + 1;
+			float numberWidth = StringWidth(lineNumber.String());
+			DrawString(lineNumber.String(), BPoint(bounds.right - numberWidth - 7,
+				linePosition.y - textBounds.top + fontHeight.ascent
+					+ kEditorBorderInset));
+		}
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+private:
+	EditorTextView* fTextView;
 };
 
 
@@ -383,6 +418,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		B_DOCUMENT_WINDOW, B_ASYNCHRONOUS_CONTROLS),
 	fMenuBar(nullptr),
 	fTagToolbar(nullptr),
+	fLineNumberView(nullptr),
 	fTextView(nullptr),
 	fScrollView(nullptr),
 	fStatusView(nullptr),
@@ -460,11 +496,13 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	fTextView->SetFontAndColor(be_fixed_font);
 	fTextView->SetDoesUndo(true);
 	fTextView->SetWordWrap(false);
-	fTextView->SetInsets(kLineNumberGutterWidth + 8.0f, 8.0f, 8.0f, 8.0f);
+	fTextView->SetInsets(8.0f, 8.0f, 8.0f, 8.0f);
 	fTextView->SetExplicitMinSize(BSize(0.0f, 0.0f));
 	fTextView->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, B_SIZE_UNLIMITED));
 	fTextView->MakeEditable(!fReadOnly);
 	fTextView->MakeFocus(true);
+	fLineNumberView = new LineNumberView(editor);
+	editor->SetLineNumberView(fLineNumberView);
 	fStatusView = new BStringView("status", "Line 1, Column 1");
 	fStatusView->SetTruncation(B_TRUNCATE_END);
 	fStatusView->SetExplicitMinSize(BSize(0, B_SIZE_UNSET));
@@ -478,7 +516,10 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	BLayoutBuilder::Group<>(this, B_VERTICAL, 0)
 		.Add(fMenuBar)
 		.Add(fTagToolbar)
-		.Add(fScrollView)
+		.AddGroup(B_HORIZONTAL, 0)
+			.Add(fLineNumberView)
+			.Add(fScrollView)
+			.End()
 		.AddGroup(B_HORIZONTAL, 0)
 			.SetInsets(B_USE_SMALL_SPACING, 2, B_USE_SMALL_SPACING, 2)
 			.Add(fStatusView)
@@ -519,6 +560,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 				B_FONT_SIZE);
 		} else
 			fTextView->SetFontAndColor(&presentationFont);
+		editor->InvalidateLineNumbers();
 	}
 	Show();
 }

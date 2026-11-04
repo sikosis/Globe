@@ -64,6 +64,7 @@ private:
 
 	BMenuBar* fMenuBar;
 	BView* fTagToolbar;
+	BView* fLineNumberView;
 	BTextView* fTextView;
 	BScrollView* fScrollView;
 	BStringView* fStatusView;
