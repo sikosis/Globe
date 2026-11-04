@@ -256,17 +256,24 @@ public:
 
 
 	void Draw(BRect updateRect) override {
-		BTextView::Draw(updateRect);
-
 		BRect gutter(Bounds());
 		gutter.right = gutter.left + kLineNumberGutterWidth;
+		BRect textUpdate(updateRect);
+		textUpdate.left = std::max(textUpdate.left, gutter.right + 1.0f);
+		if (textUpdate.IsValid())
+			BTextView::Draw(textUpdate);
+
+		BRect gutterUpdate = gutter & updateRect;
+		if (!gutterUpdate.IsValid())
+			return;
+
 		SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-		FillRect(gutter & updateRect);
+		FillRect(gutterUpdate);
 
 		SetHighColor(tint_color(ui_color(B_PANEL_BACKGROUND_COLOR),
 			B_DARKEN_2_TINT));
-		StrokeLine(BPoint(gutter.right, gutter.top),
-			BPoint(gutter.right, gutter.bottom));
+		StrokeLine(BPoint(gutter.right, gutterUpdate.top),
+			BPoint(gutter.right, gutterUpdate.bottom));
 
 		font_height fontHeight;
 		GetFontHeight(&fontHeight);
@@ -274,8 +281,8 @@ public:
 		SetHighColor(tint_color(ui_color(B_PANEL_TEXT_COLOR),
 			B_DISABLED_LABEL_TINT));
 
-		int32 firstLine = LineAt(BPoint(TextRect().left, updateRect.top));
-		int32 lastLine = LineAt(BPoint(TextRect().left, updateRect.bottom));
+		int32 firstLine = LineAt(BPoint(TextRect().left, gutterUpdate.top));
+		int32 lastLine = LineAt(BPoint(TextRect().left, gutterUpdate.bottom));
 		if (firstLine < 0)
 			firstLine = 0;
 		if (lastLine >= CountLines())
@@ -321,9 +328,10 @@ public:
 
 	void InsertText(const char* text, int32 length, int32 offset,
 		const text_run_array* runs) override {
+		int32 previousLineCount = CountLines();
 		BTextView::InsertText(text, length, offset, runs);
-		Invalidate(BRect(Bounds().left, Bounds().top,
-			Bounds().left + kLineNumberGutterWidth, Bounds().bottom));
+		if (CountLines() != previousLineCount)
+			InvalidateGutter();
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -331,9 +339,10 @@ public:
 
 
 	void DeleteText(int32 fromOffset, int32 toOffset) override {
+		int32 previousLineCount = CountLines();
 		BTextView::DeleteText(fromOffset, toOffset);
-		Invalidate(BRect(Bounds().left, Bounds().top,
-			Bounds().left + kLineNumberGutterWidth, Bounds().bottom));
+		if (CountLines() != previousLineCount)
+			InvalidateGutter();
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -341,6 +350,13 @@ public:
 
 
 private:
+	void InvalidateGutter() {
+		Invalidate(BRect(Bounds().left, Bounds().top,
+			Bounds().left + kLineNumberGutterWidth, Bounds().bottom));
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	bool fNotifyChanges;
 	bool fPresentation;
 };
