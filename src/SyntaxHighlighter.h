@@ -10,7 +10,8 @@ enum class SyntaxLanguage {
 	Html,
 	Php,
 	Rdef,
-	Cpp
+	Cpp,
+	Makefile
 };
 
 enum class SyntaxKind {

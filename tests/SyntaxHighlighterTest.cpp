@@ -128,6 +128,38 @@ main() {
 	ExpectSpan(header, headerSpans, SyntaxKind::Comment,
 		"// opens a document");
 
+	const std::string makefile
+		= "CXX ?= g++\n"
+		"CXXFLAGS += -std=c++17\n"
+		"SOURCES := $(wildcard src/*.cpp)\n"
+		".PHONY: all clean\n"
+		"all: $(SOURCES)\n"
+		"\t$(CXX) $(CXXFLAGS) -o $@ $^\n"
+		"ifeq ($(DEBUG),1)\n"
+		"CXXFLAGS += -g\n"
+		"endif\n"
+		"clean:\n"
+		"\trm -rf \"$(BUILD_DIR)\" # remove build output\n";
+	std::vector<SyntaxSpan> makefileSpans
+		= BuildSyntaxSpans(makefile, SyntaxLanguage::Makefile);
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Variable, "CXX");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Keyword, "?=");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Variable, "CXXFLAGS");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Keyword, "+=");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Variable,
+		"$(wildcard src/*.cpp)");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Preprocessor, ".PHONY");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Function, "all");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Variable, "$(SOURCES)");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Variable, "$@");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Variable, "$^");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Keyword, "ifeq");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Number, "1");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::String,
+		"\"$(BUILD_DIR)\"");
+	ExpectSpan(makefile, makefileSpans, SyntaxKind::Comment,
+		"# remove build output");
+
 	if (!BuildSyntaxSpans(html, SyntaxLanguage::PlainText).empty()) {
 		std::cerr << "Plain text unexpectedly produced highlighted spans\n";
 		return EXIT_FAILURE;

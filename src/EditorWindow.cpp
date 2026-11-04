@@ -1069,6 +1069,8 @@ EditorWindow::_ApplySyntaxHighlighting() {
 		language = SyntaxLanguage::Rdef;
 	else if (strcmp(_FileTypeLabel(), "C/C++") == 0)
 		language = SyntaxLanguage::Cpp;
+	else if (strcmp(_FileTypeLabel(), "Makefile") == 0)
+		language = SyntaxLanguage::Makefile;
 	if (language == SyntaxLanguage::PlainText)
 		return;
 
@@ -1251,9 +1253,20 @@ EditorWindow::_FileTypeLabel() const {
 	if (!fHasDocument)
 		return "Plain text";
 
+	if (strcasecmp(fDocument.name, "Makefile") == 0
+		|| strcasecmp(fDocument.name, "GNUmakefile") == 0
+		|| strcasecmp(fDocument.name, "BSDmakefile") == 0
+		|| strncasecmp(fDocument.name, "Makefile.", 9) == 0) {
+		return "Makefile";
+	}
 	const char* extension = strrchr(fDocument.name, '.');
 	if (extension == nullptr)
 		return "Plain text";
+	if (strcasecmp(extension, ".mk") == 0
+		|| strcasecmp(extension, ".mak") == 0
+		|| strcasecmp(extension, ".make") == 0) {
+		return "Makefile";
+	}
 	if (strcasecmp(extension, ".html") == 0
 		|| strcasecmp(extension, ".htm") == 0) {
 		return "HTML";

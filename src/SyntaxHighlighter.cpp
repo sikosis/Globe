@@ -134,6 +134,150 @@ IsCppConstant(const std::string& word) {
 //---------------------------------------------------------------------------------------------------------------------------------//
 
 
+bool
+IsMakeDirective(const std::string& word) {
+	static const std::unordered_set<std::string> directives = {
+		"define", "else", "endef", "endif", "export", "ifdef", "ifeq",
+		"ifndef", "ifneq", "include", "-include", "override", "private",
+		"sinclude", "undefine", "unexport", "vpath"
+	};
+	return directives.find(word) != directives.end();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+std::size_t
+FirstNonWhitespace(const std::string& text, std::size_t start,
+	std::size_t end) {
+	while (start < end
+		&& std::isspace(static_cast<unsigned char>(text[start]))) {
+		++start;
+	}
+	return start;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+std::size_t
+LastNonWhitespace(const std::string& text, std::size_t start,
+	std::size_t end) {
+	while (end > start
+		&& std::isspace(static_cast<unsigned char>(text[end - 1]))) {
+		--end;
+	}
+	return end;
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
+HighlightMakefileRange(const std::string& text, std::size_t start,
+	std::size_t end, std::vector<SyntaxSpan>& spans) {
+	std::size_t lineStart = start;
+	while (lineStart < end) {
+		std::size_t lineEnd = text.find('\n', lineStart);
+		if (lineEnd == std::string::npos || lineEnd > end)
+			lineEnd = end;
+		std::size_t contentStart = FirstNonWhitespace(text, lineStart, lineEnd);
+
+		std::size_t wordEnd = contentStart;
+		while (wordEnd < lineEnd
+			&& !std::isspace(static_cast<unsigned char>(text[wordEnd]))) {
+			++wordEnd;
+		}
+		std::string firstWord = text.substr(contentStart, wordEnd - contentStart);
+		if (IsMakeDirective(firstWord))
+			AddSpan(spans, contentStart, wordEnd, SyntaxKind::Keyword);
+
+		if (contentStart < lineEnd && text[lineStart] != '\t') {
+			std::size_t assignment = std::string::npos;
+			const char* operators[] = {"::=", ":=", "?=", "+=", "!=", "="};
+			for (const char* assignmentOperator : operators) {
+				std::size_t found = text.find(assignmentOperator, contentStart);
+				if (found < lineEnd
+					&& (assignment == std::string::npos || found < assignment)) {
+					assignment = found;
+				}
+			}
+			std::size_t colon = text.find(':', contentStart);
+			if (assignment != std::string::npos
+				&& (colon == std::string::npos || colon >= assignment)) {
+				std::size_t variableStart = contentStart;
+				if (IsMakeDirective(firstWord))
+					variableStart = FirstNonWhitespace(text, wordEnd, assignment);
+				std::size_t variableEnd = LastNonWhitespace(text, variableStart,
+					assignment);
+				AddSpan(spans, variableStart, variableEnd, SyntaxKind::Variable);
+				std::size_t operatorEnd = assignment + 1;
+				while (operatorEnd < lineEnd
+					&& (text[operatorEnd] == ':' || text[operatorEnd] == '?'
+						|| text[operatorEnd] == '+' || text[operatorEnd] == '!'
+						|| text[operatorEnd] == '=')) {
+					++operatorEnd;
+				}
+				AddSpan(spans, assignment, operatorEnd, SyntaxKind::Keyword);
+			} else if (colon < lineEnd) {
+				std::size_t targetEnd = LastNonWhitespace(text, contentStart, colon);
+				bool isSpecialTarget = text.compare(contentStart,
+					targetEnd - contentStart, ".PHONY") == 0;
+				SyntaxKind targetKind = isSpecialTarget
+					? SyntaxKind::Preprocessor : SyntaxKind::Function;
+				AddSpan(spans, contentStart, targetEnd, targetKind);
+			}
+		}
+
+		std::size_t offset = contentStart;
+		while (offset < lineEnd) {
+			if (text[offset] == '#'
+				&& (offset == contentStart || text[offset - 1] != '\\')) {
+				AddSpan(spans, offset, lineEnd, SyntaxKind::Comment);
+				break;
+			}
+			if (text[offset] == '$' && offset + 1 < lineEnd) {
+				std::size_t variableEnd = offset + 2;
+				if (text[offset + 1] == '(' || text[offset + 1] == '{') {
+					char closing = text[offset + 1] == '(' ? ')' : '}';
+					std::size_t closingOffset = text.find(closing, offset + 2);
+					variableEnd = closingOffset < lineEnd
+						? closingOffset + 1 : lineEnd;
+				}
+				AddSpan(spans, offset, variableEnd, SyntaxKind::Variable);
+				offset = variableEnd;
+				continue;
+			}
+			if (text[offset] == '\'' || text[offset] == '"') {
+				char quote = text[offset];
+				std::size_t stringEnd = offset + 1;
+				while (stringEnd < lineEnd) {
+					if (text[stringEnd] == '\\' && stringEnd + 1 < lineEnd) {
+						stringEnd += 2;
+						continue;
+					}
+					if (text[stringEnd++] == quote)
+						break;
+				}
+				AddSpan(spans, offset, stringEnd, SyntaxKind::String);
+				offset = stringEnd;
+				continue;
+			}
+			if (std::isdigit(static_cast<unsigned char>(text[offset]))) {
+				std::size_t numberEnd = offset + 1;
+				while (numberEnd < lineEnd
+					&& std::isdigit(static_cast<unsigned char>(text[numberEnd]))) {
+					++numberEnd;
+				}
+				AddSpan(spans, offset, numberEnd, SyntaxKind::Number);
+				offset = numberEnd;
+				continue;
+			}
+			++offset;
+		}
+		lineStart = lineEnd < end ? lineEnd + 1 : end;
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 void
 HighlightCppRange(const std::string& text, std::size_t start,
 	std::size_t end, std::vector<SyntaxSpan>& spans) {
@@ -499,6 +643,10 @@ BuildSyntaxSpans(const std::string& text, SyntaxLanguage language) {
 	}
 	if (language == SyntaxLanguage::Cpp) {
 		HighlightCppRange(text, 0, text.size(), spans);
+		return spans;
+	}
+	if (language == SyntaxLanguage::Makefile) {
+		HighlightMakefileRange(text, 0, text.size(), spans);
 		return spans;
 	}
 

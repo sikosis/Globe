@@ -23,7 +23,7 @@ The current development version provides a small, dependable editor core:
 - protection against accidentally closing an unsaved document;
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display;
-- theme-aware HTML, PHP, C/C++ header and source, and Haiku
+- theme-aware HTML, PHP, C/C++ header and source, Makefile, and Haiku
   resource-definition syntax highlighting while editing, with distinct C/C++
   colours for preprocessors, types, functions, keywords, constants, strings,
   numbers, and comments;
@@ -31,8 +31,8 @@ The current development version provides a small, dependable editor core:
 - an About window preserving Globe's original credits, artwork, and licence;
 - Globe's original large and mini application icons for Haiku's Deskbar and
   Tracker;
-- and a compact HTML tag toolbar using the original artwork, with delayed tag
-  completion after typing `<`.
+- and a compact HTML tag toolbar with modern vector-derived icons and delayed
+  tag completion after typing `<`.
 
 ## Building
 
