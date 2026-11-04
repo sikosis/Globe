@@ -573,10 +573,10 @@ HighlightHtmlTag(const std::string& text, std::size_t& offset,
 		++end;
 
 	std::size_t cursor = offset;
-	AddSpan(spans, cursor, cursor + 1, SyntaxKind::Tag);
+	AddSpan(spans, cursor, cursor + 1, SyntaxKind::MarkupDelimiter);
 	++cursor;
 	if (cursor < end && (text[cursor] == '/' || text[cursor] == '!')) {
-		AddSpan(spans, cursor, cursor + 1, SyntaxKind::Tag);
+		AddSpan(spans, cursor, cursor + 1, SyntaxKind::MarkupDelimiter);
 		++cursor;
 	}
 	while (cursor < end && std::isspace(static_cast<unsigned char>(text[cursor])))
@@ -589,13 +589,13 @@ HighlightHtmlTag(const std::string& text, std::size_t& offset,
 
 	while (cursor < end) {
 		if (text[cursor] == '>') {
-			AddSpan(spans, cursor, cursor + 1, SyntaxKind::Tag);
+			AddSpan(spans, cursor, cursor + 1, SyntaxKind::MarkupDelimiter);
 			++cursor;
 			break;
 		}
 		if (text[cursor] == '/' && cursor + 1 < end
 			&& text[cursor + 1] == '>') {
-			AddSpan(spans, cursor, cursor + 2, SyntaxKind::Tag);
+			AddSpan(spans, cursor, cursor + 2, SyntaxKind::MarkupDelimiter);
 			cursor += 2;
 			break;
 		}

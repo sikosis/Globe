@@ -24,15 +24,28 @@ The current development version provides a small, dependable editor core:
 - line numbers that remain aligned while editing and scrolling;
 - a live line, column, file-type, and modification-status display;
 - theme-aware HTML, PHP, C/C++ header and source, Makefile, and Haiku
-  resource-definition syntax highlighting while editing, with distinct C/C++
-  colours for preprocessors, types, functions, keywords, constants, strings,
-  numbers, and comments;
+  resource-definition syntax highlighting while editing, including distinct
+  HTML delimiter, tag, attribute, string, entity, and comment colours and
+  distinct C/C++ colours for preprocessors, types, functions, keywords,
+  constants, strings, numbers, and comments;
 - previewing in Haiku's preferred browser or the Tororu document viewer;
 - an About window preserving Globe's original credits, artwork, and licence;
 - Globe's original large and mini application icons for Haiku's Deskbar and
   Tracker;
-- and a compact HTML tag toolbar with modern vector-derived icons and delayed
-  tag completion after typing `<`.
+- and a compact HTML tag toolbar with modern vector-derived icons plus a
+  keyboard-driven, searchable tag launcher after typing `<`, designed to grow
+  into a reusable code-snippet launcher.
+
+### Tag and snippet launcher
+
+Typing `<` opens Globe's launcher with HTML tags selected. Type to filter the
+list, use the arrow keys to move, press Enter to insert, or Escape to cancel.
+Pressing `` ` `` while the launcher is open toggles between tags and snippets.
+
+Snippet mode reads every regular file in the automatically created
+`Globe/snippets` directory inside Haiku's user settings directory. The filename
+is the searchable launcher name and the complete file contents are inserted
+verbatim, so snippets may contain any text.
 
 ## Building
 

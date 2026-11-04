@@ -16,6 +16,7 @@ enum class SyntaxLanguage {
 
 enum class SyntaxKind {
 	Tag,
+	MarkupDelimiter,
 	Attribute,
 	String,
 	Comment,

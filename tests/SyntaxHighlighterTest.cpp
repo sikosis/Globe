@@ -40,6 +40,8 @@ main() {
 	std::vector<SyntaxSpan> htmlSpans
 		= BuildSyntaxSpans(html, SyntaxLanguage::Html);
 	ExpectSpan(html, htmlSpans, SyntaxKind::Tag, "div");
+	ExpectSpan(html, htmlSpans, SyntaxKind::MarkupDelimiter, "<");
+	ExpectSpan(html, htmlSpans, SyntaxKind::MarkupDelimiter, ">");
 	ExpectSpan(html, htmlSpans, SyntaxKind::Attribute, "class");
 	ExpectSpan(html, htmlSpans, SyntaxKind::String, "\"hero\"");
 	ExpectSpan(html, htmlSpans, SyntaxKind::Entity, "&amp;");

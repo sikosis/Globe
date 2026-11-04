@@ -9,18 +9,20 @@
 #include <Bitmap.h>
 #include <Button.h>
 #include <Clipboard.h>
+#include <Directory.h>
 #include <File.h>
 #include <FilePanel.h>
+#include <FindDirectory.h>
 #include <Font.h>
 #include <InterfaceDefs.h>
 #include <LayoutBuilder.h>
+#include <ListView.h>
 #include <Menu.h>
 #include <MenuBar.h>
 #include <MenuItem.h>
 #include <MessageRunner.h>
 #include <Messenger.h>
 #include <Path.h>
-#include <PopUpMenu.h>
 #include <PropertyInfo.h>
 #include <Roster.h>
 #include <Screen.h>
@@ -28,12 +30,14 @@
 #include <ScrollView.h>
 #include <Size.h>
 #include <String.h>
+#include <StringItem.h>
 #include <StringView.h>
 #include <TextView.h>
 #include <TranslationUtils.h>
 #include <View.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <climits>
 #include <cstring>
@@ -47,6 +51,12 @@ const float kEditorBorderInset = 2.0f;
 const bigtime_t kHighlightDelay = 150000;
 const bigtime_t kTagCompletionDelay = 300000;
 const float kAutomationScreenInset = 24.0f;
+const uint32 kMessageTagLauncherFilter = 'gtlf';
+const uint32 kMessageTagLauncherMove = 'gtlm';
+const uint32 kMessageTagLauncherAccept = 'gtla';
+const uint32 kMessageTagLauncherCancel = 'gtlc';
+const uint32 kMessageTagLauncherClosed = 'gtlx';
+const uint32 kMessageTagLauncherToggleMode = 'gtlt';
 
 property_info kDocumentProperties[] = {
 	{ "ID", { B_GET_PROPERTY }, { B_DIRECT_SPECIFIER },
@@ -171,6 +181,8 @@ SyntaxColour(SyntaxKind kind) {
 	if (UsesDarkEditorBackground()) {
 		switch (kind) {
 			case SyntaxKind::Tag:
+				return {255, 126, 156, 255};
+			case SyntaxKind::MarkupDelimiter:
 			case SyntaxKind::Preprocessor:
 				return {120, 180, 255, 255};
 			case SyntaxKind::Keyword:
@@ -194,6 +206,8 @@ SyntaxColour(SyntaxKind kind) {
 
 	switch (kind) {
 		case SyntaxKind::Tag:
+			return {173, 35, 71, 255};
+		case SyntaxKind::MarkupDelimiter:
 		case SyntaxKind::Preprocessor:
 			return {0, 92, 185, 255};
 		case SyntaxKind::Keyword:
@@ -407,6 +421,347 @@ private:
 };
 
 
+class TagLauncherField : public BTextView {
+public:
+	TagLauncherField()
+		:
+		BTextView("tag search", B_WILL_DRAW | B_NAVIGABLE) {
+		SetWordWrap(false);
+		SetInsets(8.0f, 7.0f, 8.0f, 7.0f);
+		SetExplicitMinSize(BSize(320.0f, 34.0f));
+		SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, 34.0f));
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void KeyDown(const char* bytes, int32 numBytes) override {
+		if (numBytes == 1 && bytes[0] == '`') {
+			Window()->PostMessage(kMessageTagLauncherToggleMode);
+			return;
+		}
+		if (numBytes == 1 && bytes[0] == B_ESCAPE) {
+			Window()->PostMessage(kMessageTagLauncherCancel);
+			return;
+		}
+		if (numBytes == 1 && bytes[0] == B_ENTER) {
+			Window()->PostMessage(kMessageTagLauncherAccept);
+			return;
+		}
+		if (numBytes == 1 && (bytes[0] == B_UP_ARROW
+			|| bytes[0] == B_DOWN_ARROW)) {
+			BMessage message(kMessageTagLauncherMove);
+			message.AddInt32("delta", bytes[0] == B_UP_ARROW ? -1 : 1);
+			Window()->PostMessage(&message);
+			return;
+		}
+
+		BTextView::KeyDown(bytes, numBytes);
+		Window()->PostMessage(kMessageTagLauncherFilter);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+};
+
+
+class TagLauncherItem : public BStringItem {
+public:
+	TagLauncherItem(const char* label, const std::string& content,
+		bool expandTemplate)
+		:
+		BStringItem(label),
+		fContent(content),
+		fExpandTemplate(expandTemplate) {
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	const char* Content() const {
+		return fContent.c_str();
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	bool ExpandsTemplate() const {
+		return fExpandTemplate;
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+private:
+	std::string fContent;
+	bool fExpandTemplate;
+};
+
+
+struct LauncherEntry {
+	std::string label;
+	std::string content;
+	bool expandTemplate;
+};
+
+
+class TagLauncherWindow : public BWindow {
+public:
+	TagLauncherWindow(EditorWindow* owner, BPoint position)
+		:
+		BWindow(BRect(position.x, position.y, position.x + 420.0f,
+				position.y + 340.0f), "Insert HTML",
+			B_FLOATING_WINDOW_LOOK, B_FLOATING_SUBSET_WINDOW_FEEL,
+			B_NOT_RESIZABLE | B_NOT_ZOOMABLE | B_NOT_MINIMIZABLE
+				| B_ASYNCHRONOUS_CONTROLS),
+		fTarget(owner),
+		fField(new TagLauncherField()),
+		fListView(new BListView("tag matches", B_SINGLE_SELECTION_LIST)),
+		fHeading(new BStringView("tag launcher heading", "Insert HTML tag")),
+		fSnippetMode(false),
+		fNotifyTarget(true) {
+		BScrollView* fieldBorder = new BScrollView("tag search border", fField,
+			B_WILL_DRAW, false, false, B_FANCY_BORDER);
+		BScrollView* results = new BScrollView("tag results", fListView,
+			B_WILL_DRAW, false, true, B_FANCY_BORDER);
+		BStringView* help = new BStringView("tag launcher help",
+			"Type to filter  •  ` tags/snippets  •  ↑↓ select  •  Enter insert");
+		help->SetHighColor(tint_color(ui_color(B_PANEL_TEXT_COLOR),
+			B_DISABLED_LABEL_TINT));
+
+		BLayoutBuilder::Group<>(this, B_VERTICAL, B_USE_SMALL_SPACING)
+			.SetInsets(B_USE_DEFAULT_SPACING)
+			.Add(fHeading)
+			.Add(fieldBorder)
+			.Add(results)
+			.Add(help);
+		fListView->SetInvocationMessage(new BMessage(kMessageTagLauncherAccept));
+		fListView->SetTarget(this);
+		AddToSubset(owner);
+		_ConstrainToScreen();
+		_LoadEntries();
+		_Filter();
+		fField->MakeFocus(true);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void SuppressCloseNotification() {
+		fNotifyTarget = false;
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void MessageReceived(BMessage* message) override {
+		switch (message->what) {
+			case kMessageTagLauncherFilter:
+				_Filter();
+				break;
+			case kMessageTagLauncherMove:
+			{
+				int32 delta = 0;
+				message->FindInt32("delta", &delta);
+				_MoveSelection(delta);
+				break;
+			}
+			case kMessageTagLauncherAccept:
+				_Accept();
+				break;
+			case kMessageTagLauncherCancel:
+				PostMessage(B_QUIT_REQUESTED);
+				break;
+			case kMessageTagLauncherToggleMode:
+				_ToggleMode();
+				break;
+			default:
+				BWindow::MessageReceived(message);
+				break;
+		}
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	bool QuitRequested() override {
+		if (fNotifyTarget)
+			fTarget.SendMessage(kMessageTagLauncherClosed);
+		return true;
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+private:
+	void _LoadEntries() {
+		fEntries.clear();
+		if (!fSnippetMode) {
+			for (const char* tag : kHtmlTags) {
+				fEntries.push_back({tag, BuildHtmlTagTemplate(tag), true});
+			}
+			return;
+		}
+
+		BPath path;
+		if (find_directory(B_USER_SETTINGS_DIRECTORY, &path, true) != B_OK)
+			return;
+		if (path.Append("Globe") != B_OK)
+			return;
+		status_t error = create_directory(path.Path(), 0755);
+		if (error != B_OK && error != B_FILE_EXISTS)
+			return;
+		if (path.Append("snippets") != B_OK)
+			return;
+		error = create_directory(path.Path(), 0755);
+		if (error != B_OK && error != B_FILE_EXISTS)
+			return;
+
+		BDirectory directory(path.Path());
+		BEntry entry;
+		while (directory.GetNextEntry(&entry, true) == B_OK) {
+			if (!entry.IsFile())
+				continue;
+			char name[B_FILE_NAME_LENGTH];
+			if (entry.GetName(name) != B_OK)
+				continue;
+			std::string content;
+			if (_ReadSnippet(entry, content) == B_OK)
+				fEntries.push_back({name, content, false});
+		}
+		std::sort(fEntries.begin(), fEntries.end(),
+			[](const LauncherEntry& left, const LauncherEntry& right) {
+				return strcasecmp(left.label.c_str(), right.label.c_str()) < 0;
+			});
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	status_t _ReadSnippet(BEntry& entry, std::string& content) {
+		BFile file(&entry, B_READ_ONLY);
+		status_t error = file.InitCheck();
+		if (error != B_OK)
+			return error;
+
+		off_t size = 0;
+		error = file.GetSize(&size);
+		if (error != B_OK)
+			return error;
+		if (size < 0 || size > INT32_MAX)
+			return B_BAD_VALUE;
+
+		content.assign(static_cast<std::size_t>(size), '\0');
+		std::size_t totalRead = 0;
+		while (totalRead < static_cast<std::size_t>(size)) {
+			ssize_t bytesRead = file.Read(content.data() + totalRead,
+				static_cast<std::size_t>(size) - totalRead);
+			if (bytesRead < 0)
+				return static_cast<status_t>(bytesRead);
+			if (bytesRead == 0)
+				break;
+			totalRead += static_cast<std::size_t>(bytesRead);
+		}
+		content.resize(totalRead);
+		return B_OK;
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void _ToggleMode() {
+		fSnippetMode = !fSnippetMode;
+		SetTitle(fSnippetMode ? "Insert snippet" : "Insert HTML");
+		fHeading->SetText(fSnippetMode
+			? "Code snippets — settings/Globe/snippets"
+			: "Insert HTML tag");
+		fField->SetText("");
+		fField->Select(0, 0);
+		_LoadEntries();
+		_Filter();
+		fField->MakeFocus(true);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void _Filter() {
+		while (BListItem* item = fListView->RemoveItem(int32(0)))
+			delete item;
+
+		std::string query(fField->Text());
+		std::transform(query.begin(), query.end(), query.begin(),
+			[](unsigned char character) { return std::tolower(character); });
+		for (const LauncherEntry& entry : fEntries) {
+			std::string candidate(entry.label);
+			std::transform(candidate.begin(), candidate.end(), candidate.begin(),
+				[](unsigned char character) { return std::tolower(character); });
+			if (query.empty() || candidate.compare(0, query.size(), query) == 0) {
+				fListView->AddItem(new TagLauncherItem(entry.label.c_str(),
+					entry.content, entry.expandTemplate));
+			}
+		}
+		if (fListView->CountItems() == 0 && !query.empty()) {
+			for (const LauncherEntry& entry : fEntries) {
+				std::string candidate(entry.label);
+				std::transform(candidate.begin(), candidate.end(), candidate.begin(),
+					[](unsigned char character) { return std::tolower(character); });
+				if (candidate.find(query) != std::string::npos) {
+					fListView->AddItem(new TagLauncherItem(entry.label.c_str(),
+						entry.content, entry.expandTemplate));
+				}
+			}
+		}
+		if (fListView->CountItems() == 0 && fSnippetMode)
+			fListView->AddItem(new BStringItem("No snippet files found"));
+		if (fListView->CountItems() > 0) {
+			fListView->Select(0);
+			fListView->ScrollToSelection();
+		}
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void _MoveSelection(int32 delta) {
+		int32 count = fListView->CountItems();
+		if (count == 0)
+			return;
+		int32 selection = fListView->CurrentSelection();
+		selection = std::max(0, std::min(count - 1, selection + delta));
+		fListView->Select(selection);
+		fListView->ScrollToSelection();
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void _Accept() {
+		TagLauncherItem* item = dynamic_cast<TagLauncherItem*>(
+			fListView->ItemAt(fListView->CurrentSelection()));
+		if (item == nullptr)
+			return;
+
+		BMessage message(kMessageInsertTag);
+		message.AddString("template", item->Content());
+		message.AddBool("replace_opener", true);
+		message.AddBool("expand_template", item->ExpandsTemplate());
+		fTarget.SendMessage(&message);
+		PostMessage(B_QUIT_REQUESTED);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void _ConstrainToScreen() {
+		BScreen screen(this);
+		if (!screen.IsValid())
+			return;
+		BRect screenFrame = screen.Frame();
+		BRect frame = Frame();
+		float x = std::max(screenFrame.left,
+			std::min(frame.left, screenFrame.right - frame.Width()));
+		float y = std::max(screenFrame.top,
+			std::min(frame.top, screenFrame.bottom - frame.Height()));
+		MoveTo(x, y);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	BMessenger fTarget;
+	TagLauncherField* fField;
+	BListView* fListView;
+	BStringView* fHeading;
+	std::vector<LauncherEntry> fEntries;
+	bool fSnippetMode;
+	bool fNotifyTarget;
+};
+
+
 void
 ShowFileError(const char* operation, const char* path, status_t error) {
 	BString message(operation);
@@ -434,6 +789,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	fStatusView(nullptr),
 	fHighlightRunner(nullptr),
 	fTagCompletionRunner(nullptr),
+	fTagLauncher(nullptr),
 	fOpenPanel(nullptr),
 	fSavePanel(nullptr),
 	fDocumentID(documentID),
@@ -578,6 +934,11 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 
 
 EditorWindow::~EditorWindow() {
+	if (fTagLauncher != nullptr && fTagLauncher->Lock()) {
+		static_cast<TagLauncherWindow*>(fTagLauncher)
+			->SuppressCloseNotification();
+		fTagLauncher->Quit();
+	}
 	delete fHighlightRunner;
 	delete fTagCompletionRunner;
 	delete fOpenPanel;
@@ -794,7 +1155,12 @@ EditorWindow::MessageReceived(BMessage* message) {
 						fTextView->Select(selectionStart - 1, selectionStart);
 					}
 				}
-				_InsertTagTemplate(tagTemplate);
+				bool expandTemplate = true;
+				message->FindBool("expand_template", &expandTemplate);
+				if (expandTemplate)
+					_InsertTagTemplate(tagTemplate);
+				else
+					_InsertSnippet(tagTemplate);
 			}
 			break;
 		}
@@ -809,6 +1175,9 @@ EditorWindow::MessageReceived(BMessage* message) {
 		case kMessageCancelTagCompletion:
 			delete fTagCompletionRunner;
 			fTagCompletionRunner = nullptr;
+			break;
+		case kMessageTagLauncherClosed:
+			fTagLauncher = nullptr;
 			break;
 		case kMessageAutomationGetScroll:
 			_ReplyWithScrollState(message);
@@ -1203,6 +1572,22 @@ EditorWindow::_InsertTagTemplate(const char* tagTemplate) {
 
 
 void
+EditorWindow::_InsertSnippet(const char* snippet) {
+	int32 selectionStart = 0;
+	int32 selectionEnd = 0;
+	fTextView->GetSelection(&selectionStart, &selectionEnd);
+	fTextView->Delete(selectionStart, selectionEnd);
+	fTextView->Select(selectionStart, selectionStart);
+	fTextView->Insert(snippet);
+	int32 insertionEnd = selectionStart + static_cast<int32>(strlen(snippet));
+	fTextView->Select(insertionEnd, insertionEnd);
+	fTextView->MakeFocus(true);
+	_UpdateStatus();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+void
 EditorWindow::_ScheduleTagCompletion() {
 	delete fTagCompletionRunner;
 	BMessage message(kMessageShowTagCompletion);
@@ -1222,23 +1607,18 @@ EditorWindow::_ShowTagCompletion() {
 		return;
 	}
 
-	BPopUpMenu* menu = new BPopUpMenu("HTML tags", false, false);
-	for (const char* tag : kHtmlTags) {
-		BMessage* message = new BMessage(kMessageInsertTag);
-		std::string tagTemplate = BuildHtmlTagTemplate(tag);
-		message->AddString("template", tagTemplate.c_str());
-		message->AddBool("replace_opener", true);
-		menu->AddItem(new BMenuItem(tag, message));
+	if (fTagLauncher != nullptr) {
+		fTagLauncher->Activate(true);
+		return;
 	}
-	menu->SetTargetForItems(this);
-	menu->SetAsyncAutoDestruct(true);
 
 	font_height fontHeight;
 	fTextView->GetFontHeight(&fontHeight);
 	BPoint point = fTextView->PointAt(selectionStart);
 	point.y += fontHeight.ascent + fontHeight.descent + fontHeight.leading + 3.0f;
 	point = fTextView->ConvertToScreen(point);
-	menu->Go(point, true, true, true);
+	fTagLauncher = new TagLauncherWindow(this, point);
+	fTagLauncher->Show();
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
