@@ -11,6 +11,7 @@ enum {
 	kMessageSavePanelAccepted = 'gspa',
 	kMessageDocumentChanged = 'gchg',
 	kMessageUpdateStatus = 'gust',
+	kMessageUpdateLineNumbers = 'guln',
 	kMessageHighlightDocument = 'ghlt',
 	kMessagePreviewBrowser = 'gpwb',
 	kMessagePreviewTororu = 'gpwt',

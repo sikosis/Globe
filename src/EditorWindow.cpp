@@ -311,10 +311,11 @@ public:
 
 	void InsertText(const char* text, int32 length, int32 offset,
 		const text_run_array* runs) override {
-		int32 previousLineCount = CountLines();
+		bool addsLine = length > 0
+			&& std::memchr(text, '\n', static_cast<std::size_t>(length)) != nullptr;
 		BTextView::InsertText(text, length, offset, runs);
-		if (CountLines() != previousLineCount)
-			InvalidateLineNumbers();
+		if (addsLine && Window() != nullptr)
+			Window()->PostMessage(kMessageUpdateLineNumbers);
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -322,10 +323,13 @@ public:
 
 
 	void DeleteText(int32 fromOffset, int32 toOffset) override {
-		int32 previousLineCount = CountLines();
+		bool removesLine = fromOffset >= 0 && toOffset > fromOffset
+			&& toOffset <= TextLength()
+			&& std::memchr(Text() + fromOffset, '\n',
+				static_cast<std::size_t>(toOffset - fromOffset)) != nullptr;
 		BTextView::DeleteText(fromOffset, toOffset);
-		if (CountLines() != previousLineCount)
-			InvalidateLineNumbers();
+		if (removesLine && Window() != nullptr)
+			Window()->PostMessage(kMessageUpdateLineNumbers);
 		if (fNotifyChanges && Window() != nullptr)
 			Window()->PostMessage(kMessageDocumentChanged);
 	}
@@ -759,6 +763,9 @@ EditorWindow::MessageReceived(BMessage* message) {
 			break;
 		case kMessageUpdateStatus:
 			_UpdateStatus();
+			break;
+		case kMessageUpdateLineNumbers:
+			fLineNumberView->Invalidate();
 			break;
 		case kMessageHighlightDocument:
 			delete fHighlightRunner;
