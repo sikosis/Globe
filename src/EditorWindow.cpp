@@ -1152,7 +1152,9 @@ EditorWindow::MessageReceived(BMessage* message) {
 					fTextView->GetSelection(&selectionStart, &selectionEnd);
 					if (selectionStart == selectionEnd && selectionStart > 0
 						&& fTextView->Text()[selectionStart - 1] == '<') {
-						fTextView->Select(selectionStart - 1, selectionStart);
+						fTextView->Delete(selectionStart - 1, selectionStart);
+						fTextView->Select(selectionStart - 1,
+							selectionStart - 1);
 					}
 				}
 				bool expandTemplate = true;
@@ -1612,11 +1614,13 @@ EditorWindow::_ShowTagCompletion() {
 		return;
 	}
 
-	font_height fontHeight;
-	fTextView->GetFontHeight(&fontHeight);
-	BPoint point = fTextView->PointAt(selectionStart);
-	point.y += fontHeight.ascent + fontHeight.descent + fontHeight.leading + 3.0f;
-	point = fTextView->ConvertToScreen(point);
+	BRect documentFrame = Frame();
+	const float launcherWidth = 420.0f;
+	const float launcherHeight = 340.0f;
+	BPoint point(documentFrame.left
+		+ (documentFrame.Width() - launcherWidth) / 2.0f,
+		documentFrame.top
+			+ (documentFrame.Height() - launcherHeight) / 2.0f);
 	fTagLauncher = new TagLauncherWindow(this, point);
 	fTagLauncher->Show();
 }
