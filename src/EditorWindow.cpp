@@ -34,6 +34,7 @@
 #include <View.h>
 
 #include <algorithm>
+#include <cmath>
 #include <climits>
 #include <cstring>
 #include <strings.h>
@@ -372,12 +373,17 @@ public:
 			B_DISABLED_LABEL_TINT));
 
 		BRect textBounds(fTextView->Bounds());
-		int32 firstLine = fTextView->LineAt(BPoint(
-			fTextView->TextRect().left, textBounds.top));
-		int32 lastLine = fTextView->LineAt(BPoint(
-			fTextView->TextRect().left, textBounds.bottom));
+		float lineHeight = fTextView->LineHeight(0);
+		float firstLineTop = fTextView->PointAt(0).y;
+		int32 firstLine = lineHeight > 0.0f
+			? static_cast<int32>(std::floor(
+				(textBounds.top - firstLineTop) / lineHeight)) : 0;
 		firstLine = std::max(0, firstLine);
-		lastLine = std::min(lastLine, fTextView->CountLines() - 1);
+		int32 visibleLineCount = lineHeight > 0.0f
+			? static_cast<int32>(std::ceil(textBounds.Height() / lineHeight)) + 2
+			: 1;
+		int32 lastLine = std::min(firstLine + visibleLineCount,
+			fTextView->CountLines() - 1);
 
 		for (int32 line = firstLine; line <= lastLine; ++line) {
 			BPoint linePosition = fTextView->PointAt(fTextView->OffsetAt(line));
@@ -770,6 +776,17 @@ EditorWindow::MessageReceived(BMessage* message) {
 			const char* tagTemplate = nullptr;
 			if (!fReadOnly
 				&& message->FindString("template", &tagTemplate) == B_OK) {
+				bool replaceOpener = false;
+				message->FindBool("replace_opener", &replaceOpener);
+				if (replaceOpener) {
+					int32 selectionStart = 0;
+					int32 selectionEnd = 0;
+					fTextView->GetSelection(&selectionStart, &selectionEnd);
+					if (selectionStart == selectionEnd && selectionStart > 0
+						&& fTextView->Text()[selectionStart - 1] == '<') {
+						fTextView->Select(selectionStart - 1, selectionStart);
+					}
+				}
 				_InsertTagTemplate(tagTemplate);
 			}
 			break;
@@ -1199,21 +1216,22 @@ EditorWindow::_ShowTagCompletion() {
 	}
 
 	BPopUpMenu* menu = new BPopUpMenu("HTML tags", false, false);
-	for (const char* tag : kHtmlTags)
-		menu->AddItem(new BMenuItem(tag, nullptr));
+	for (const char* tag : kHtmlTags) {
+		BMessage* message = new BMessage(kMessageInsertTag);
+		std::string tagTemplate = BuildHtmlTagTemplate(tag);
+		message->AddString("template", tagTemplate.c_str());
+		message->AddBool("replace_opener", true);
+		menu->AddItem(new BMenuItem(tag, message));
+	}
+	menu->SetTargetForItems(this);
+	menu->SetAsyncAutoDestruct(true);
 
 	font_height fontHeight;
 	fTextView->GetFontHeight(&fontHeight);
 	BPoint point = fTextView->PointAt(selectionStart);
 	point.y += fontHeight.ascent + fontHeight.descent + fontHeight.leading + 3.0f;
 	point = fTextView->ConvertToScreen(point);
-	BMenuItem* selected = menu->Go(point, false, true);
-	if (selected != nullptr) {
-		std::string tagTemplate = BuildHtmlTagTemplate(selected->Label());
-		fTextView->Select(selectionStart - 1, selectionStart);
-		_InsertTagTemplate(tagTemplate.c_str());
-	}
-	delete menu;
+	menu->Go(point, true, true, true);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
