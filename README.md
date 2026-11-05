@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.55-f5a623" alt="Version v0.55">
+  <img src="https://img.shields.io/badge/version-v0.58-f5a623" alt="Version v0.58">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>
@@ -18,6 +18,8 @@ The current development version provides a small, dependable editor core:
 
 - native Haiku document windows;
 - new, open, save, and save-as workflows;
+- Tracker file drops onto the document window, reusing an empty window or
+  opening another window when the current document is occupied;
 - multiple documents in separate windows;
 - standard editing commands and shortcuts;
 - protection against accidentally closing an unsaved document;

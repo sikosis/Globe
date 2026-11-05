@@ -305,6 +305,17 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
+	void MessageReceived(BMessage* message) override {
+		if ((message->what == B_SIMPLE_DATA || message->what == B_REFS_RECEIVED)
+			&& message->HasRef("refs") && Window() != nullptr) {
+			Window()->PostMessage(message);
+			return;
+		}
+		BTextView::MessageReceived(message);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
 	void KeyDown(const char* bytes, int32 numBytes) override {
 		if (fPresentation && numBytes == 1 && bytes[0] == B_ESCAPE) {
 			if (Window() != nullptr)
@@ -1069,6 +1080,18 @@ EditorWindow::MessageReceived(BMessage* message) {
 	}
 
 	switch (message->what) {
+		case B_SIMPLE_DATA:
+		case B_REFS_RECEIVED:
+		{
+			BMessage refs(B_REFS_RECEIVED);
+			entry_ref document;
+			int32 index = 0;
+			while (message->FindRef("refs", index++, &document) == B_OK)
+				refs.AddRef("refs", &document);
+			if (refs.HasRef("refs"))
+				be_app->PostMessage(&refs);
+			break;
+		}
 		case kMessageNewDocument:
 			be_app->PostMessage(kMessageNewDocument);
 			break;
@@ -1121,6 +1144,7 @@ EditorWindow::MessageReceived(BMessage* message) {
 		case kMessageDocumentChanged:
 			_SetModified(true);
 			_ScheduleSyntaxHighlighting();
+			_UpdateStatus();
 			break;
 		case kMessageUpdateStatus:
 			_UpdateStatus();
@@ -1507,13 +1531,14 @@ void
 EditorWindow::_ApplySyntaxHighlighting() {
 	int32 textLength = fTextView->TextLength();
 	rgb_color baseColour = SyntaxBaseColour();
-	BFont font(*be_fixed_font);
 	if (textLength == 0) {
-		fTextView->SetFontAndColor(&font, B_FONT_ALL, &baseColour);
+		fTextView->SetFontAndColor(nullptr, 0, &baseColour);
 		return;
 	}
 
-	fTextView->SetFontAndColor(0, textLength, &font, B_FONT_ALL, &baseColour);
+	// Colour changes must not reset font metrics or disturb the editor's scroll
+	// position while the user is typing.
+	fTextView->SetFontAndColor(0, textLength, nullptr, 0, &baseColour);
 
 	SyntaxLanguage language = SyntaxLanguage::PlainText;
 	if (strcmp(_FileTypeLabel(), "HTML") == 0)
