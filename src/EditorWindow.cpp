@@ -261,7 +261,7 @@ public:
 	ToolbarButton(const char* name, BMessage* message, const char* toolTip,
 		BBitmap* icon)
 		:
-		BControl(name, "", message, B_WILL_DRAW | B_NAVIGABLE),
+		BControl(name, "", message, B_WILL_DRAW),
 		fIcon(icon),
 		fHover(false) {
 		SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
@@ -294,10 +294,6 @@ public:
 			FillRoundRect(buttonBounds, 6.0f, 6.0f);
 		}
 
-		if (IsFocus()) {
-			SetHighColor(ui_color(B_KEYBOARD_NAVIGATION_COLOR));
-			StrokeRoundRect(buttonBounds, 6.0f, 6.0f);
-		}
 		if (fIcon != nullptr) {
 			BRect iconBounds(fIcon->Bounds());
 			BPoint location(std::floor((Bounds().Width() - iconBounds.Width())
@@ -343,17 +339,6 @@ public:
 	//---------------------------------------------------------------------------------------------------------------------------------//
 
 
-	void KeyDown(const char* bytes, int32 numBytes) override {
-		if (IsEnabled() && numBytes == 1
-			&& (bytes[0] == B_SPACE || bytes[0] == B_ENTER)) {
-			Invoke();
-			return;
-		}
-		BControl::KeyDown(bytes, numBytes);
-	}
-	//---------------------------------------------------------------------------------------------------------------------------------//
-
-
 private:
 	BBitmap* fIcon;
 	bool fHover;
@@ -365,6 +350,7 @@ TagButton(const char* label, const char* tagTemplate, const char* toolTip,
 	const char* iconResource) {
 	BMessage* message = new BMessage(kMessageInsertTag);
 	message->AddString("template", tagTemplate);
+	message->AddBool("expand_template", true);
 	BBitmap* icon = BTranslationUtils::GetBitmap('PNG ', iconResource);
 	TintToolbarIcon(icon, ui_color(B_CONTROL_TEXT_COLOR));
 	return new ToolbarButton(label, message, toolTip, icon);
@@ -975,7 +961,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 			"toolbar-italic.png"))
 		.Add(TagButton("H1", "<h1>%c</h1>", "Heading 1", "toolbar-h1.png"))
 		.Add(TagButton("A", "<a href=\"\">%c</a>", "Link", "toolbar-anchor.png"))
-		.Add(TagButton("IMG", "<img src=\"%c\" alt=\"\">", "Image",
+		.Add(TagButton("IMG", "<img src=\"%c\" alt=\"\" />", "Image",
 			"toolbar-image.png"))
 		.Add(TagButton("DIV", "<div>%c</div>", "Division", "toolbar-div.png"))
 		.Add(TagButton("SPAN", "<span>%c</span>", "Inline span",
@@ -983,7 +969,7 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		.Add(TagButton("UL", "<ul>\n%c\n</ul>", "Unordered list",
 			"toolbar-ul.png"))
 		.Add(TagButton("LI", "<li>%c</li>", "List item", "toolbar-li.png"))
-		.Add(TagButton("BR", "<br>%c", "Line break", "toolbar-br.png"))
+		.Add(TagButton("BR", "<br />%c", "Line break", "toolbar-br.png"))
 		.AddGlue();
 
 	EditorTextView* editor = new EditorTextView(fPresentationMode);
@@ -1301,7 +1287,11 @@ EditorWindow::MessageReceived(BMessage* message) {
 					}
 				}
 				bool expandTemplate = true;
-				message->FindBool("expand_template", &expandTemplate);
+				bool requestedExpansion = true;
+				if (message->FindBool("expand_template",
+						&requestedExpansion) == B_OK) {
+					expandTemplate = requestedExpansion;
+				}
 				if (expandTemplate)
 					_InsertTagTemplate(tagTemplate);
 				else
@@ -1715,6 +1705,7 @@ EditorWindow::_InsertTagTemplate(const char* tagTemplate) {
 	fTextView->Insert(insertion.text.c_str());
 	fTextView->Select(selectionStart + static_cast<int32>(insertion.selectionStart),
 		selectionStart + static_cast<int32>(insertion.selectionEnd));
+	fTextView->ScrollToSelection();
 	fTextView->MakeFocus(true);
 	_UpdateStatus();
 }

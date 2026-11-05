@@ -134,6 +134,14 @@ CreateLicencesView() {
 			"A modern continuation of the original BeOS Globe web editor."))
 		.Add(new BStringView("preserved source",
 			"The original source and artwork remain preserved in Globe-Original."))
+		.AddStrut(8.0f)
+		.Add(Heading("material symbols heading", "Material Symbols"))
+		.Add(new BStringView("material symbols copyright",
+			"Toolbar icons copyright Google LLC"))
+		.Add(new BStringView("material symbols licence",
+			"Licensed under the Apache License, version 2.0"))
+		.Add(new LinkView("material symbols link", "Material Symbols licence",
+			"https://github.com/google/material-design-icons/blob/master/LICENSE"))
 		.AddGlue();
 
 	return view;
