@@ -7,8 +7,8 @@
 #include <Alert.h>
 #include <Application.h>
 #include <Bitmap.h>
-#include <Button.h>
 #include <Clipboard.h>
+#include <Control.h>
 #include <Directory.h>
 #include <File.h>
 #include <FilePanel.h>
@@ -233,22 +233,141 @@ SyntaxColour(SyntaxKind kind) {
 //---------------------------------------------------------------------------------------------------------------------------------//
 
 
-BButton*
+void
+TintToolbarIcon(BBitmap* icon, rgb_color colour) {
+	if (icon == nullptr || !icon->IsValid())
+		return;
+	color_space colourSpace = icon->ColorSpace();
+	if (colourSpace != B_RGBA32 && colourSpace != B_RGB32)
+		return;
+
+	uint8* bits = static_cast<uint8*>(icon->Bits());
+	int32 width = icon->Bounds().IntegerWidth() + 1;
+	int32 height = icon->Bounds().IntegerHeight() + 1;
+	for (int32 y = 0; y < height; ++y) {
+		uint8* pixel = bits + y * icon->BytesPerRow();
+		for (int32 x = 0; x < width; ++x, pixel += 4) {
+			pixel[0] = colour.blue;
+			pixel[1] = colour.green;
+			pixel[2] = colour.red;
+		}
+	}
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+class ToolbarButton : public BControl {
+public:
+	ToolbarButton(const char* name, BMessage* message, const char* toolTip,
+		BBitmap* icon)
+		:
+		BControl(name, "", message, B_WILL_DRAW | B_NAVIGABLE),
+		fIcon(icon),
+		fHover(false) {
+		SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
+		SetExplicitMinSize(BSize(34.0f, 34.0f));
+		SetExplicitMaxSize(BSize(34.0f, 34.0f));
+		SetToolTip(toolTip);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	~ToolbarButton() override {
+		delete fIcon;
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void Draw(BRect updateRect) override {
+		SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+		FillRect(updateRect);
+
+		BRect buttonBounds(Bounds());
+		buttonBounds.InsetBy(2.0f, 2.0f);
+		if (Value() == B_CONTROL_ON) {
+			SetHighColor(tint_color(ui_color(B_PANEL_BACKGROUND_COLOR),
+				B_DARKEN_2_TINT));
+			FillRoundRect(buttonBounds, 6.0f, 6.0f);
+		} else if (fHover) {
+			SetHighColor(tint_color(ui_color(B_PANEL_BACKGROUND_COLOR),
+				B_DARKEN_1_TINT));
+			FillRoundRect(buttonBounds, 6.0f, 6.0f);
+		}
+
+		if (IsFocus()) {
+			SetHighColor(ui_color(B_KEYBOARD_NAVIGATION_COLOR));
+			StrokeRoundRect(buttonBounds, 6.0f, 6.0f);
+		}
+		if (fIcon != nullptr) {
+			BRect iconBounds(fIcon->Bounds());
+			BPoint location(std::floor((Bounds().Width() - iconBounds.Width())
+				/ 2.0f), std::floor((Bounds().Height() - iconBounds.Height())
+				/ 2.0f));
+			SetDrawingMode(B_OP_ALPHA);
+			DrawBitmap(fIcon, location);
+			SetDrawingMode(B_OP_COPY);
+		}
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void MouseDown(BPoint point) override {
+		if (!IsEnabled())
+			return;
+		SetValue(B_CONTROL_ON);
+		SetMouseEventMask(B_POINTER_EVENTS, B_LOCK_WINDOW_FOCUS);
+		Invalidate();
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void MouseUp(BPoint point) override {
+		bool invoke = Value() == B_CONTROL_ON && Bounds().Contains(point);
+		SetValue(B_CONTROL_OFF);
+		Invalidate();
+		if (invoke)
+			Invoke();
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void MouseMoved(BPoint point, uint32 transit,
+		const BMessage* message) override {
+		bool hover = transit == B_ENTERED_VIEW || transit == B_INSIDE_VIEW;
+		if (hover != fHover) {
+			fHover = hover;
+			Invalidate();
+		}
+		BControl::MouseMoved(point, transit, message);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+	void KeyDown(const char* bytes, int32 numBytes) override {
+		if (IsEnabled() && numBytes == 1
+			&& (bytes[0] == B_SPACE || bytes[0] == B_ENTER)) {
+			Invoke();
+			return;
+		}
+		BControl::KeyDown(bytes, numBytes);
+	}
+	//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+private:
+	BBitmap* fIcon;
+	bool fHover;
+};
+
+
+ToolbarButton*
 TagButton(const char* label, const char* tagTemplate, const char* toolTip,
 	const char* iconResource) {
 	BMessage* message = new BMessage(kMessageInsertTag);
 	message->AddString("template", tagTemplate);
-	BButton* button = new BButton(label, message);
 	BBitmap* icon = BTranslationUtils::GetBitmap('PNG ', iconResource);
-	if (icon != nullptr) {
-		button->SetIcon(icon, B_TRIM_ICON_BITMAP_KEEP_ASPECT);
-		button->SetLabel("");
-		button->SetExplicitMinSize(BSize(34.0f, 34.0f));
-		button->SetExplicitMaxSize(BSize(34.0f, 34.0f));
-		delete icon;
-	}
-	button->SetToolTip(toolTip);
-	return button;
+	TintToolbarIcon(icon, ui_color(B_CONTROL_TEXT_COLOR));
+	return new ToolbarButton(label, message, toolTip, icon);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 

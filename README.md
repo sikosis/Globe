@@ -5,7 +5,7 @@
 <h1 align="center">Globe</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.58-f5a623" alt="Version v0.58">
+  <img src="https://img.shields.io/badge/version-v0.59-f5a623" alt="Version v0.59">
   <img src="https://img.shields.io/badge/platform-Haiku-ffcc00" alt="Platform: Haiku">
   <img src="https://img.shields.io/badge/C%2B%2B-17-00599c" alt="C++17">
 </p>
@@ -35,9 +35,9 @@ The current development version provides a small, dependable editor core:
 - an About window preserving Globe's original credits, artwork, and licence;
 - Globe's original large and mini application icons for Haiku's Deskbar and
   Tracker;
-- and a compact HTML tag toolbar with modern vector-derived icons plus a
-  keyboard-driven, searchable tag launcher after typing `<`, designed to grow
-  into a reusable code-snippet launcher.
+- and a compact HTML tag toolbar with flat native controls and rounded Google
+  Material Symbols, plus a keyboard-driven searchable tag launcher after
+  typing `<` that also supports reusable code snippets.
 
 ### Tag and snippet launcher
 
@@ -157,4 +157,11 @@ Development is proceeding in small, testable milestones:
 - `Globe-Original/` is the historical source used as the behavioural and
   design reference. Changes for the modern application should be made in
   `src/`, leaving that reference tree intact.
+
+## Third-party artwork
+
+The HTML toolbar uses selected 24 px Material Symbols Rounded icons by Google,
+recoloured at runtime to follow Haiku's current control-text colour. Material
+Symbols are distributed under the Apache License 2.0; the bundled licence is
+in [`third_party/material-symbols/LICENSE`](third_party/material-symbols/LICENSE).
 
