@@ -39,6 +39,10 @@ main() {
 	ExpectInsertion(ExpandTagTemplate("<strong>%c</strong>", "Globe"),
 		"<strong>Globe</strong>", 8, 13);
 	ExpectInsertion(ExpandTagTemplate("<p>%c</p>", ""), "<p></p>", 3, 3);
+	ExpectInsertion(ExpandTagTemplate(BuildHtmlTagTemplate("a"), ""),
+		"<a href=\"\"></a>", 9, 9);
+	ExpectInsertion(ExpandTagTemplate(BuildHtmlTagTemplate("a"), "Globe"),
+		"<a href=\"\">Globe</a>", 9, 9);
 	ExpectInsertion(ExpandTagTemplate(BuildHtmlTagTemplate("br"), ""),
 		"<br />", 6, 6);
 	ExpectInsertion(ExpandTagTemplate(BuildHtmlTagTemplate("hr"), ""),
@@ -54,6 +58,7 @@ main() {
 	for (const char* tagName : voidElements)
 		ExpectTemplate(tagName, "<" + std::string(tagName) + " />%c");
 	ExpectTemplate("img", "<img src=\"%c\" alt=\"\" />");
+	ExpectTemplate("a", "<a href=\"%c\">%s</a>");
 
 	std::cout << "Tag tools tests passed\n";
 	return EXIT_SUCCESS;

@@ -28,6 +28,7 @@
 #include <Screen.h>
 #include <ScrollBar.h>
 #include <ScrollView.h>
+#include <SeparatorView.h>
 #include <Size.h>
 #include <String.h>
 #include <StringItem.h>
@@ -354,6 +355,26 @@ TagButton(const char* label, const char* tagTemplate, const char* toolTip,
 	BBitmap* icon = BTranslationUtils::GetBitmap('PNG ', iconResource);
 	TintToolbarIcon(icon, ui_color(B_CONTROL_TEXT_COLOR));
 	return new ToolbarButton(label, message, toolTip, icon);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+ToolbarButton*
+ActionButton(const char* label, uint32 messageCode, const char* toolTip,
+	const char* iconResource) {
+	BBitmap* icon = BTranslationUtils::GetBitmap('PNG ', iconResource);
+	TintToolbarIcon(icon, ui_color(B_CONTROL_TEXT_COLOR));
+	return new ToolbarButton(label, new BMessage(messageCode), toolTip, icon);
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+BSeparatorView*
+ToolbarSeparator() {
+	BSeparatorView* separator = new BSeparatorView(B_VERTICAL);
+	separator->SetExplicitMinSize(BSize(9.0f, 30.0f));
+	separator->SetExplicitMaxSize(BSize(9.0f, B_SIZE_UNLIMITED));
+	return separator;
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -954,13 +975,26 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 	fTagToolbar->SetViewUIColor(B_PANEL_BACKGROUND_COLOR);
 	BLayoutBuilder::Group<>(fTagToolbar, B_HORIZONTAL, 3.0f)
 		.SetInsets(B_USE_SMALL_SPACING, 3.0f, B_USE_SMALL_SPACING, 3.0f)
+		.Add(ActionButton("New", kMessageNewDocument, "New document",
+			"toolbar-new.png"))
+		.Add(ActionButton("Open", kMessageOpenDocument, "Open document",
+			"toolbar-open.png"))
+		.Add(ActionButton("Save", kMessageSaveDocument, "Save document",
+			"toolbar-save.png"))
+		.Add(ToolbarSeparator())
+		.Add(ActionButton("Browser", kMessagePreviewBrowser,
+			"Preview in preferred browser", "toolbar-browser.png"))
+		.Add(ActionButton("Tororu", kMessagePreviewTororu,
+			"Preview in Tororu", "toolbar-tororu.png"))
+		.Add(ToolbarSeparator())
 		.Add(TagButton("P", "<p>%c</p>", "Paragraph", "toolbar-p.png"))
 		.Add(TagButton("B", "<strong>%c</strong>", "Strong text",
 			"toolbar-bold.png"))
 		.Add(TagButton("I", "<em>%c</em>", "Emphasised text",
 			"toolbar-italic.png"))
 		.Add(TagButton("H1", "<h1>%c</h1>", "Heading 1", "toolbar-h1.png"))
-		.Add(TagButton("A", "<a href=\"\">%c</a>", "Link", "toolbar-anchor.png"))
+		.Add(TagButton("A", "<a href=\"%c\">%s</a>", "Link",
+			"toolbar-anchor.png"))
 		.Add(TagButton("IMG", "<img src=\"%c\" alt=\"\" />", "Image",
 			"toolbar-image.png"))
 		.Add(TagButton("DIV", "<div>%c</div>", "Division", "toolbar-div.png"))
@@ -971,6 +1005,8 @@ EditorWindow::EditorWindow(const char* documentID, const entry_ref* document,
 		.Add(TagButton("LI", "<li>%c</li>", "List item", "toolbar-li.png"))
 		.Add(TagButton("BR", "<br />%c", "Line break", "toolbar-br.png"))
 		.AddGlue();
+	fTagToolbar->SetExplicitMinSize(BSize(0.0f, 40.0f));
+	fTagToolbar->SetExplicitMaxSize(BSize(B_SIZE_UNLIMITED, 40.0f));
 
 	EditorTextView* editor = new EditorTextView(fPresentationMode);
 	fTextView = editor;

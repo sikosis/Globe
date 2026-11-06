@@ -5,10 +5,10 @@ resource app_signature "application/x-vnd.hGlobe";
 resource app_version {
 	major = 0,
 	middle = 6,
-	minor = 2,
+	minor = 4,
 	variety = B_APPV_DEVELOPMENT,
 	internal = 0,
-	short_info = "Globe 0.62",
+	short_info = "Globe 0.64",
 	long_info = "Globe web editor"
 };
 
@@ -86,3 +86,8 @@ resource(207, "toolbar-span.png") #'PNG ' import "toolbar/span.png";
 resource(208, "toolbar-ul.png") #'PNG ' import "toolbar/ul.png";
 resource(209, "toolbar-li.png") #'PNG ' import "toolbar/li.png";
 resource(210, "toolbar-br.png") #'PNG ' import "toolbar/br.png";
+resource(211, "toolbar-new.png") #'PNG ' import "toolbar/new.png";
+resource(212, "toolbar-open.png") #'PNG ' import "toolbar/open.png";
+resource(213, "toolbar-save.png") #'PNG ' import "toolbar/save.png";
+resource(214, "toolbar-browser.png") #'PNG ' import "toolbar/browser.png";
+resource(215, "toolbar-tororu.png") #'PNG ' import "toolbar/tororu.png";
