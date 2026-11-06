@@ -5,6 +5,7 @@
 #include "TagTools.h"
 
 #include <Alert.h>
+#include <AppFileInfo.h>
 #include <Application.h>
 #include <Bitmap.h>
 #include <Clipboard.h>
@@ -22,6 +23,7 @@
 #include <MenuItem.h>
 #include <MessageRunner.h>
 #include <Messenger.h>
+#include <Mime.h>
 #include <Path.h>
 #include <PropertyInfo.h>
 #include <Roster.h>
@@ -905,6 +907,32 @@ ShowFileError(const char* operation, const char* path, status_t error) {
 	message << " “" << path << "” failed: " << strerror(error);
 	(new BAlert("File error", message.String(), "OK", nullptr, nullptr,
 		B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+}
+//---------------------------------------------------------------------------------------------------------------------------------//
+
+
+status_t
+SendToPreferredApplication(const char* mimeType, BMessage* message) {
+	entry_ref application;
+	status_t error = be_roster->FindApp(mimeType, &application);
+	if (error != B_OK)
+		return error;
+
+	BFile applicationFile(&application, B_READ_ONLY);
+	BAppFileInfo applicationInfo(&applicationFile);
+	char signature[B_MIME_TYPE_LENGTH];
+	if (applicationFile.InitCheck() == B_OK
+		&& applicationInfo.InitCheck() == B_OK
+		&& applicationInfo.GetSignature(signature) == B_OK) {
+		BMessenger runningApplication(signature);
+		if (runningApplication.IsValid()) {
+			error = runningApplication.SendMessage(message);
+			if (error == B_OK)
+				return B_OK;
+		}
+	}
+
+	return be_roster->Launch(&application, message);
 }
 //---------------------------------------------------------------------------------------------------------------------------------//
 
@@ -1837,7 +1865,7 @@ EditorWindow::_LaunchPreview(PendingAction action) {
 		return error;
 
 	if (action == PendingAction::PreviewBrowser)
-		return be_roster->Launch("text/html", &message);
+		return SendToPreferredApplication("text/html", &message);
 	if (action == PendingAction::PreviewTororu) {
 		return be_roster->Launch("application/x-vnd.sikosis-Tororu",
 			&message);
